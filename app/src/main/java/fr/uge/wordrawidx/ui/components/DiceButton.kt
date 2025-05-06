@@ -7,9 +7,12 @@ import androidx.compose.animation.core.infiniteRepeatable
 import androidx.compose.animation.core.rememberInfiniteTransition
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
@@ -33,13 +36,13 @@ fun DiceButton(
     onRollClick: () -> Unit,
     modifier: Modifier = Modifier
 ) {
-    // Animation for dice rolling
+    // Animation de rotation pour le dé
     val infiniteTransition = rememberInfiniteTransition(label = "diceRotation")
     val rotation by infiniteTransition.animateFloat(
         initialValue = 0f,
         targetValue = 360f,
         animationSpec = infiniteRepeatable(
-            animation = tween(500, easing = LinearEasing),
+            animation = tween(durationMillis = 500, easing = LinearEasing),
             repeatMode = RepeatMode.Restart
         ),
         label = "diceRotation"
@@ -55,21 +58,19 @@ fun DiceButton(
         shape = RoundedCornerShape(16.dp),
         modifier = modifier
             .shadow(4.dp, RoundedCornerShape(16.dp))
-            .padding(8.dp)
     ) {
-        Box(
-            contentAlignment = Alignment.Center,
-            modifier = Modifier.padding(4.dp)
+        Row(
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.Center
         ) {
-            // Dice display
+            // Le « dé » animé
             Box(
                 contentAlignment = Alignment.Center,
                 modifier = Modifier
                     .size(48.dp)
                     .rotate(if (isRolling) rotation else 0f)
-                    .shadow(4.dp, RoundedCornerShape(8.dp))
+                    .shadow(2.dp, RoundedCornerShape(8.dp))
                     .background(Color.White, RoundedCornerShape(8.dp))
-                    .padding(8.dp)
             ) {
                 Text(
                     text = if (isRolling) "?" else diceValue.toString(),
@@ -79,12 +80,13 @@ fun DiceButton(
                 )
             }
 
-            // Button text
+            Spacer(modifier = Modifier.width(12.dp))
+
+            // Le texte du bouton
             Text(
                 text = "Roll Dice",
                 style = MaterialTheme.typography.labelLarge,
-                color = MaterialTheme.colorScheme.onSecondary,
-                modifier = Modifier.padding(start = 64.dp)
+                color = MaterialTheme.colorScheme.onSecondary
             )
         }
     }
