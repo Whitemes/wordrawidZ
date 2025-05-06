@@ -91,10 +91,6 @@ git commit -m "Add dice roll animation"
 git push origin feature/ui-dice-animation
 ```
 
-#### ✅ **Ajout d’un tableau des fonctionnalités (frontend uniquement pour l’instant)**
-
-Cela rend visible ce qui est déjà fait et ce qui est prévu :
-
 ## 🧩 Features Overview (Frontend Phase)
 
 | Feature                       | Status    | File/Screen                |
