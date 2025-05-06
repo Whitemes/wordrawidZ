@@ -1,32 +1,31 @@
 package fr.uge.wordrawidx.ui.components
 
 import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.ElevatedCard
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.shadow
-import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import fr.uge.wordrawidx.model.GameState
 import fr.uge.wordrawidx.ui.theme.BoardBorder
@@ -40,20 +39,30 @@ fun GameBoard(
 ) {
     val boardSize = 5
     val cellIndices = getCellIndices(boardSize)
+    val cornerRadius = 24.dp
 
-    Box(
+    ElevatedCard(
         modifier = modifier
             .fillMaxWidth()
             .aspectRatio(1f)
-            .shadow(8.dp, RoundedCornerShape(16.dp))
-            .clip(RoundedCornerShape(16.dp))
-            .border(2.dp, BoardBorder, RoundedCornerShape(16.dp))
-            .background(MaterialTheme.colorScheme.surface)
-            .padding(8.dp)
+            // 1) shadow et shape
+            .shadow(8.dp, RoundedCornerShape(cornerRadius), clip = false)
+            .border(2.dp, BoardBorder, RoundedCornerShape(cornerRadius)),
+        shape = RoundedCornerShape(cornerRadius),
+        colors = CardDefaults.elevatedCardColors(
+            containerColor = MaterialTheme.colorScheme.surface
+        ),
+        elevation = CardDefaults.elevatedCardElevation(defaultElevation = 8.dp)
     ) {
         LazyVerticalGrid(
             columns = GridCells.Fixed(boardSize),
-            modifier = Modifier.fillMaxSize()
+            modifier = Modifier
+                .fillMaxSize()
+                // 2) même couleur de fond pour éviter le liseré
+                .background(MaterialTheme.colorScheme.surface)
+                .padding(4.dp),
+            verticalArrangement = Arrangement.spacedBy(2.dp),
+            horizontalArrangement = Arrangement.spacedBy(2.dp)
         ) {
             items(cellIndices) { index ->
                 BoardCell(
@@ -74,75 +83,45 @@ fun BoardCell(
     hasPlayer: Boolean,
     isMoving: Boolean
 ) {
-    // Calculate cell number (1-based for display)
     val cellNumber = index + 1
+    val row = index / boardSize
+    val col = index % boardSize
+    val cellColor = if ((row + col) % 2 == 0) CellEven else CellOdd
 
-    // Determine cell color based on position (checkerboard pattern)
-    val rowIndex = index / boardSize
-    val colIndex = index % boardSize
-    val isEvenCell = (rowIndex + colIndex) % 2 == 0
-    val cellColor = if (isEvenCell) CellEven else CellOdd
+    val scale by animateFloatAsState(targetValue = if (isMoving && hasPlayer) 1.2f else 1f)
 
-    // Animation for player token when moving
-    val playerScale by animateFloatAsState(
-        targetValue = if (isMoving && hasPlayer) 1.2f else 1f,
-        label = "playerScale"
-    )
-
-    Box(
-        contentAlignment = Alignment.Center,
-        modifier = Modifier
-            .aspectRatio(1f)
-            .padding(4.dp)
-            .clip(RoundedCornerShape(8.dp))
-            .background(cellColor)
+    Surface(
+        modifier = Modifier.aspectRatio(1f),
+        color = cellColor,
+        tonalElevation = 1.dp
     ) {
-        // Cell number
-        Text(
-            text = cellNumber.toString(),
-            style = MaterialTheme.typography.labelMedium,
-            fontWeight = FontWeight.Medium,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
-            textAlign = TextAlign.Center,
-            modifier = Modifier.align(Alignment.TopStart).padding(4.dp)
-        )
-
-        // Player token
-        if (hasPlayer) {
-            Box(
+        Box(
+            modifier = Modifier.fillMaxSize(),
+            contentAlignment = Alignment.Center
+        ) {
+            Text(
+                text = cellNumber.toString(),
+                style = MaterialTheme.typography.labelMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
                 modifier = Modifier
-                    .size((24 * playerScale).dp)
-                    .clip(CircleShape)
-                    .background(MaterialTheme.colorScheme.primary)
-                    .border(2.dp, MaterialTheme.colorScheme.onPrimary.copy(alpha = 0.5f), CircleShape)
+                    .align(Alignment.TopStart)
+                    .padding(4.dp)
             )
+            if (hasPlayer) {
+                Surface(
+                    modifier = Modifier.size((24 * scale).dp),
+                    shape = CircleShape,
+                    color = MaterialTheme.colorScheme.primary,
+                    tonalElevation = 4.dp
+                ) {}
+            }
         }
     }
 }
 
-/**
- * Generate cell indices in snake-like pattern (left to right, then right to left, etc.)
- */
-private fun getCellIndices(boardSize: Int): List<Int> {
-    val totalCells = boardSize * boardSize
-    val indices = mutableListOf<Int>()
-
-    for (row in 0 until boardSize) {
-        val rowStart = row * boardSize
-
-        // Alternate row direction (left-to-right, right-to-left)
-        if (row % 2 == 0) {
-            // Left to right
-            for (col in 0 until boardSize) {
-                indices.add(rowStart + col)
-            }
-        } else {
-            // Right to left
-            for (col in boardSize - 1 downTo 0) {
-                indices.add(rowStart + col)
-            }
+private fun getCellIndices(boardSize: Int): List<Int> =
+    List(boardSize * boardSize) { it }
+        .chunked(boardSize)
+        .flatMapIndexed { row, list ->
+            if (row % 2 == 0) list else list.reversed()
         }
-    }
-
-    return indices
-}
