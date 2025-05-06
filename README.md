@@ -68,3 +68,42 @@ wordrawidx/
 
 This project is provided for **educational and coursework purposes**.  
 You may freely reuse, modify, and adapt the code for learning or personal experimentation.
+
+## 🔀 Branching & Collaboration Workflow
+
+To coordinate development between team members, we follow this branching strategy:
+
+| Branch                  | Purpose                                    |
+|--------------------------|--------------------------------------------|
+| `main`                  | Stable production-ready version             |
+| `dev`                   | Shared development branch for UI features   |
+| `feature/ui-*`          | Individual feature branches for new components (e.g., `feature/ui-animation`, `feature/ui-challenges`) |
+
+### Example Workflow
+
+```bash
+# Create a new branch for a component or screen
+git checkout -b feature/ui-dice-animation
+
+# After work is done
+git add .
+git commit -m "Add dice roll animation"
+git push origin feature/ui-dice-animation
+```
+
+#### ✅ **Ajout d’un tableau des fonctionnalités (frontend uniquement pour l’instant)**
+
+Cela rend visible ce qui est déjà fait et ce qui est prévu :
+
+## 🧩 Features Overview (Frontend Phase)
+
+| Feature                       | Status    | File/Screen                |
+|------------------------------|-----------|----------------------------|
+| 5x5 Game Board               | ✅ Done    | `GameBoard.kt`             |
+| Dice Roll Button             | ✅ Done    | `DiceButton.kt`            |
+| Pawn Movement on Dice Roll  | ✅ Done    | `GameState.kt`, `GameBoard.kt` |
+| Turn-based logic             | 🔲 Planned |                            |
+| Clue display (word/image)    | 🔲 Planned |                            |
+| Challenge modal (Draw/Word) | 🔲 Planned |                            |
+| Special cells UI             | 🔲 Planned |                            |
+| Victory screen               | 🔲 Planned |                            |
