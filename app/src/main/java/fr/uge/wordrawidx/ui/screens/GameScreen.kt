@@ -47,7 +47,7 @@ fun GameScreen() {
         ) {
             // Game title
             Text(
-                text = "Wordrawid",
+                text = "VodyDrawid",
                 style = MaterialTheme.typography.headlineMedium,
                 color = MaterialTheme.colorScheme.primary,
                 textAlign = TextAlign.Center,
