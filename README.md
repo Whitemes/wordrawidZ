@@ -7,72 +7,64 @@ This repository contains the front-end for **Wordrawid**, an Android word-and-dr
 The project follows a standard Android application structure with Gradle as the build system.
 
 ```
-wordrawid/
-├── .gradle/                       # Gradle internal files
-├── app/                           # Application module
-│   ├── build.gradle.kts           # Module-level build file
+wordrawidx/
+├── .gradle/                        # Gradle internal files
+├── .idea/                          # IDE settings
+├── .kotlin/                        # Kotlin-specific config
+├── app/
+│   ├── build/                      # Build outputs
 │   └── src/
+│       ├── androidTest/            # Android test sources
 │       └── main/
 │           ├── AndroidManifest.xml
-│           ├── java/
-│           │   └── fr/esiee/wordrawid/
-│           │       ├── MainActivity.kt       # Entry point: sets up NavHost
-│           │       ├── GameViewModel.kt      # Holds diceValue state and rollDice() logic
-│           │       ├── HomeScreen.kt         # Composable with "Start Game" button
-│           │       ├── GameScreen.kt         # Composable showing DiceRoller & HintCard
-│           │       ├── DiceRoller.kt         # DiceFace + DiceRoller composables (Canvas-drawn die)
-│           │       └── HintCard.kt           # Simple box that displays a text hint
-│           └── res/
-│               ├── drawable/                 # (unused)
-│               ├── layout/                   # (empty)
-│               └── values/
-│                   ├── colors.xml
-│                   ├── strings.xml
-│                   └── themes.xml
-├── gradle/                        # Gradle wrapper
-│   └── wrapper/
-│       └── gradle-wrapper.properties
-├── build.gradle.kts              # Project-level build file
-├── settings.gradle.kts           # Project settings
-└── gradlew                       # Gradle wrapper script
+│           └── java/
+│               └── fr/uge/wordrawidx/
+│                   ├── MainActivity.kt               # App entry point
+│                   ├── model/
+│                   │   └── GameState.kt              # Data model for game state
+│                   └── ui/
+│                       ├── components/
+│                       │   ├── DiceButton.kt         # Composable for dice roll button
+│                       │   └── GameBoard.kt          # Composable representing the game board
+│                       ├── screens/
+│                       │   └── GameScreen.kt         # Main screen with board and controls
+│                       └── theme/
+│                           ├── Color.kt
+│                           ├── Shape.kt
+│                           ├── Theme.kt
+│                           └── Type.kt
+├── build.gradle.kts               # Project-level Gradle config
+├── settings.gradle.kts            # Project module settings
+└── gradlew                        # Gradle wrapper script
 ```
 
-## 📁 Key Files and Descriptions
+## 📄 Key Files and Descriptions
 
-| File                              | Purpose                                                                                                                                                       |
-|-----------------------------------|---------------------------------------------------------------------------------------------------------------------------------------------------------------|
-| **`settings.gradle.kts`**         | Defines project-wide settings, includes modules, and configures dependency resolution.                                                                        |
-| **`build.gradle.kts` (Project)**  | Defines project-level configurations and applies plugins shared across modules.                                                                               |
-| **`build.gradle.kts` (Module)**   | Defines module-specific configurations, including dependencies, build types, and Android settings for the `app` module.                                       |
-| **`MainActivity.kt`**             | Sets up the `NavHostController`, defines the navigation routes (`home` and `game`), and injects the `GameViewModel`.                                          |
-| **`GameViewModel.kt`**            | Holds the `diceValue` Compose state and exposes the `rollDice()` function, which generates a random number between 1 and 6.                                   |
-| **`HomeScreen.kt`**               | The welcome screen, featuring a clickable "Start Game" button. Includes the `@Preview` annotation for UI previews.                                           |
-| **`GameScreen.kt`**               | Observes the `diceValue`, displays the `DiceRoller` and `HintCard`, and provides a return button. This composable is also previewable.                       |
-| **`DiceRoller.kt`**               | Contains `DiceFace`, which draws the die pips using `Canvas`, and `DiceRoller`, which arranges the die face and a clickable "Roll" button. Both are previewable. |
-| **`HintCard.kt`**                 | A composable `Box` with a border that displays a text hint. Includes its own `@Preview` for easy testing.                                                    |
+| File                                | Purpose                                                                                                                                       |
+|-------------------------------------|-----------------------------------------------------------------------------------------------------------------------------------------------|
+| **`settings.gradle.kts`**           | Defines project-wide settings and module inclusion.                                                                                           |
+| **`build.gradle.kts` (Project)**    | Project-level configuration (plugin management, repositories, etc.).                                                                          |
+| **`app/build.gradle.kts`**          | Module-specific Gradle config for the Android app, including Compose and dependencies.                                                        |
+| **`MainActivity.kt`**               | App entry point. Sets up the UI and attaches the root composable.                                                                             |
+| **`GameState.kt`**                  | Data class or state holder for managing game logic (e.g., dice value, player position).                                                       |
+| **`GameScreen.kt`**                 | Main screen composable displaying the game board and interactive elements.                                                                    |
+| **`DiceButton.kt`**                 | A reusable composable button used to trigger dice rolls.                                                                                      |
+| **`GameBoard.kt`**                  | Composable that visually represents the grid/board where the game takes place.                                                                |
+| **`Color.kt`, `Shape.kt`, `Type.kt`, `Theme.kt`** | Define the custom Material 3 theme (colors, typography, shapes) used across the app.                                               |
 
 ---
 
 ## ▶️ Running Locally
 
-1. **Open in Android Studio**  
-   Open the project in Android Studio (Electric Eel or newer recommended).
-
-2. **Sync Project**  
-   Ensure the project syncs correctly with Gradle by clicking on **"Sync Project with Gradle Files"** (elephant icon with a green arrow).
-
-3. **Run on Emulator or Device**  
-   Run the app on an emulator or real Android device using the green play button.
-
-4. **Use Interactive Previews (Optional)**  
-   Open any composable annotated with `@Preview` and enable **Interactive Mode** to directly test UI elements like the dice roller.
-
-5. **No Backend Required**  
-   This is a standalone frontend prototype. No backend configuration is needed.
+1. **Open the project in Android Studio (Electric Eel or newer).**
+2. **Sync Gradle files** using the toolbar ("Sync Project with Gradle Files").
+3. **Run the app** on an emulator or physical Android device using the green ▶️ button.
+4. **Use Compose Previews** by opening any `@Preview`-annotated function (e.g. in `GameScreen.kt`) and viewing the design tab.
+5. **No backend required** — this app runs standalone for now.
 
 ---
 
 ## 📜 License
 
-This project is provided for **educational purposes**.  
-You are free to adapt, modify, or reuse the code for coursework, demos, or personal projects.
+This project is provided for **educational and coursework purposes**.  
+You may freely reuse, modify, and adapt the code for learning or personal experimentation.
