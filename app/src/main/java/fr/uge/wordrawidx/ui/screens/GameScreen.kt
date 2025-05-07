@@ -1,18 +1,12 @@
+// GameScreen.kt
 package fr.uge.wordrawidx.ui.screens
 
-import androidx.compose.animation.AnimatedVisibility
-import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
+import androidx.compose.animation.core.tween
+import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.foundation.background
-import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
@@ -31,9 +25,16 @@ import androidx.compose.ui.unit.dp
 import fr.uge.wordrawidx.model.GameState
 import fr.uge.wordrawidx.ui.components.DiceButton
 import fr.uge.wordrawidx.ui.components.GameBoard
+import fr.uge.wordrawidx.ui.components.GameStatusCard
 
+/**
+ * Écran de jeu principal.
+ * @param onWin Callback appelé lorsqu'un joueur atteint la dernière case.
+ */
 @Composable
-fun GameScreen() {
+fun GameScreen(
+    onWin: () -> Unit
+) {
     val gameState = remember { GameState(boardSize = 5) }
 
     // Dégradé d'arrière-plan pour l'écran
@@ -59,7 +60,7 @@ fun GameScreen() {
         ) {
             // ▶ Titre
             Text(
-                text = "VodyDrawid",
+                text = "Drawid",
                 style = MaterialTheme.typography.headlineMedium,
                 color = MaterialTheme.colorScheme.primary
             )
@@ -87,90 +88,10 @@ fun GameScreen() {
                     .padding(vertical = 16.dp)
             )
 
-            // ▶ Message de victoire
+            // ▶ Détection de victoire
             if (gameState.playerPosition == gameState.totalCells - 1) {
-                WinMessage(onPlayAgain = { gameState.resetGame() })
-            }
-        }
-    }
-}
-
-@Composable
-fun GameStatusCard(gameState: GameState) {
-    Card(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(horizontal = 16.dp),
-        shape = RoundedCornerShape(16.dp),
-        colors = CardDefaults.cardColors(
-            containerColor = MaterialTheme.colorScheme.surfaceVariant
-        ),
-        elevation = CardDefaults.cardElevation(defaultElevation = 4.dp)
-    ) {
-        Column(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(16.dp),
-            horizontalAlignment = Alignment.CenterHorizontally
-        ) {
-            Text(
-                text = "Position : ${gameState.playerPosition + 1} / ${gameState.totalCells}",
-                style = MaterialTheme.typography.bodyLarge,
-                color = MaterialTheme.colorScheme.onSurfaceVariant
-            )
-            if (gameState.lastDiceRoll > 0) {
-                Spacer(modifier = Modifier.height(8.dp))
-                Text(
-                    text = "Dernier lancer : ${gameState.lastDiceRoll}",
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                )
-            }
-        }
-    }
-}
-
-@Composable
-fun WinMessage(onPlayAgain: () -> Unit) {
-    AnimatedVisibility(
-        visible = true,
-        enter = fadeIn(tween(300)),
-        exit = fadeOut(tween(300))
-    ) {
-        Box(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(16.dp)
-                .clip(RoundedCornerShape(24.dp))
-                .background(MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.2f)),
-            contentAlignment = Alignment.Center
-        ) {
-            Card(
-                modifier = Modifier.fillMaxWidth(0.8f),
-                shape = RoundedCornerShape(16.dp),
-                colors = CardDefaults.cardColors(
-                    containerColor = MaterialTheme.colorScheme.primaryContainer
-                ),
-                elevation = CardDefaults.cardElevation(defaultElevation = 8.dp)
-            ) {
-                Column(
-                    modifier = Modifier.padding(24.dp),
-                    horizontalAlignment = Alignment.CenterHorizontally
-                ) {
-                    Text(
-                        text = "Vous avez gagné !",
-                        style = MaterialTheme.typography.headlineMedium,
-                        color = MaterialTheme.colorScheme.onPrimaryContainer
-                    )
-                    Spacer(modifier = Modifier.height(16.dp))
-                    TextButton(onClick = onPlayAgain) {
-                        Text(
-                            text = "Rejouer",
-                            style = MaterialTheme.typography.labelLarge,
-                            color = MaterialTheme.colorScheme.primary
-                        )
-                    }
-                }
+                // Appelle le callback onWin plutôt que de reset interne
+                onWin()
             }
         }
     }
