@@ -12,11 +12,9 @@ import androidx.compose.runtime.setValue
 class GameState(private val boardSize: Int = 5) {
     // Current position of the player (0-based index)
     var playerPosition by mutableStateOf(0)
-        private set
 
     // Last dice roll value
     var lastDiceRoll by mutableStateOf(0)
-        private set
 
     // Animation state for dice roll
     var isDiceRolling by mutableStateOf(false)
