@@ -6,5 +6,6 @@ package fr.uge.wordrawidx.navigation
 enum class Screen {
     Home,
     Game,
-    Victory
+    Victory,
+    AccelerometerMaze
 }
