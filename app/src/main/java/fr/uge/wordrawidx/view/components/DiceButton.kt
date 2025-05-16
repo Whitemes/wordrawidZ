@@ -1,4 +1,4 @@
-package fr.uge.wordrawidx.ui.components
+package fr.uge.wordrawidx.view.components // MODIFIÉ: Package
 
 import androidx.compose.animation.core.LinearEasing
 import androidx.compose.animation.core.RepeatMode
@@ -39,30 +39,29 @@ fun DiceButton(
     onRollClick: () -> Unit,
     modifier: Modifier = Modifier
 ) {
-    // Animation de rotation pour l’icône de dé
-    val transition = rememberInfiniteTransition()
+    val transition = rememberInfiniteTransition(label = "diceTransition") // AJOUTÉ: label
     val rotation by transition.animateFloat(
         initialValue = 0f,
         targetValue = 360f,
         animationSpec = infiniteRepeatable(
             animation = tween(durationMillis = 600, easing = LinearEasing),
             repeatMode = RepeatMode.Restart
-        )
+        ),
+        label = "diceRotationAngle" // AJOUTÉ: label
     )
 
     Button(
         onClick = onRollClick,
         enabled = !isRolling,
         modifier = modifier
-            .shadow(elevation = 8.dp, shape = RoundedCornerShape(32.dp)),
+            .shadow(elevation = 8.dp, shape = RoundedCornerShape(32.dp)), // Maintenir l'ombre externe ici
         shape = RoundedCornerShape(32.dp),
         colors = ButtonDefaults.buttonColors(
-            containerColor = Color.Transparent
+            containerColor = Color.Transparent // Pour que le Box en dessous soit la source du fond
         ),
-        contentPadding = ButtonDefaults.ContentPadding
+        contentPadding = ButtonDefaults.ContentPadding // Important pour la taille du clic
     ) {
-        // Dégradé horizontal du bouton
-        Box(
+        Box( // Ce Box porte le dégradé et le contenu interne
             modifier = Modifier
                 .background(
                     brush = Brush.horizontalGradient(
@@ -71,17 +70,15 @@ fun DiceButton(
                             MaterialTheme.colorScheme.secondary
                         )
                     ),
-                    shape = RoundedCornerShape(32.dp)
+                    shape = RoundedCornerShape(32.dp) // Assurer la cohérence des coins arrondis
                 )
-                .then(Modifier.shadow(4.dp, RoundedCornerShape(32.dp)))
+                // .then(Modifier.shadow(4.dp, RoundedCornerShape(32.dp))) // Ombre interne peut être redondante ou créer un effet double
+                .padding(horizontal = 24.dp, vertical = 12.dp) // Padding pour le contenu à l'intérieur du Box dégradé
         ) {
             Row(
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.Center,
-                modifier = Modifier
-                    .padding(horizontal = 24.dp, vertical = 12.dp)
             ) {
-                // Pastille blanche pour la valeur
                 Box(
                     contentAlignment = Alignment.Center,
                     modifier = Modifier
@@ -90,15 +87,12 @@ fun DiceButton(
                         .background(Color.White, RoundedCornerShape(12.dp))
                 ) {
                     Text(
-                        text = diceValue.toString(),
+                        text = if (diceValue > 0) diceValue.toString() else "-", // Afficher "-" si 0
                         style = MaterialTheme.typography.headlineSmall,
                         color = MaterialTheme.colorScheme.onBackground
                     )
                 }
-
                 Spacer(modifier = Modifier.width(16.dp))
-
-                // Icône de dé animée
                 Icon(
                     imageVector = Icons.Filled.Casino,
                     contentDescription = "Dice Icon",
@@ -107,10 +101,7 @@ fun DiceButton(
                         .rotate(if (isRolling) rotation else 0f),
                     tint = Color.White
                 )
-
                 Spacer(modifier = Modifier.width(12.dp))
-
-                // Label du bouton
                 Text(
                     text = "Roll Dice",
                     style = MaterialTheme.typography.labelLarge,

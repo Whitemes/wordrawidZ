@@ -1,12 +1,11 @@
-// GameStatusCard.kt
-package fr.uge.wordrawidx.ui.components
+package fr.uge.wordrawidx.view.components
 
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.shape.RoundedCornerShape // Import correct
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.MaterialTheme
@@ -17,19 +16,16 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import fr.uge.wordrawidx.model.GameState
 
-/**
- * Affiche l'état du jeu : position du joueur et dernier lancer de dé.
- */
 @Composable
 fun GameStatusCard(
     gameState: GameState,
     modifier: Modifier = Modifier
 ) {
     Card(
-        modifier = modifier
+        modifier = modifier // Le modifier principal de la Card
             .fillMaxWidth()
-            .padding(horizontal = 16.dp),
-        shape = RoundedCornerShape(16.dp),
+            .padding(horizontal = 16.dp), // Appliquer le padding au modifier de la Card
+        shape = RoundedCornerShape(16.dp), // CORRIGÉ: shape est un paramètre nommé de Card
         colors = CardDefaults.cardColors(
             containerColor = MaterialTheme.colorScheme.surfaceVariant
         ),
@@ -38,7 +34,7 @@ fun GameStatusCard(
         Column(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(16.dp),
+                .padding(16.dp), // Padding interne de la Column
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
             Text(
