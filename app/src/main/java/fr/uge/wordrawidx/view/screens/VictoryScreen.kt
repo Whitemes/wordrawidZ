@@ -1,6 +1,7 @@
-package fr.uge.wordrawidx.view.screens // MODIFIÉ: Package
+package fr.uge.wordrawidx.view.screens
 
 import android.annotation.SuppressLint
+import android.content.res.Configuration // IMPORT
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -10,65 +11,79 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.remember
+import androidx.compose.runtime.remember // Pour la Party des confettis
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.toArgb // Nécessaire pour Konfetti
-import androidx.compose.ui.platform.LocalConfiguration
+import androidx.compose.ui.graphics.toArgb
+import androidx.compose.ui.platform.LocalConfiguration // IMPORT
+import androidx.compose.ui.tooling.preview.Devices // IMPORT
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
-import nl.dionsegijn.konfetti.compose.KonfettiView // Assurez-vous que l'import est correct
+import fr.uge.wordrawidx.ui.theme.WordrawidTheme // Pour la Preview
+import nl.dionsegijn.konfetti.compose.KonfettiView
 import nl.dionsegijn.konfetti.core.Party
 import nl.dionsegijn.konfetti.core.Position
 import nl.dionsegijn.konfetti.core.emitter.Emitter
 import nl.dionsegijn.konfetti.core.models.Size
 import java.util.concurrent.TimeUnit
-import fr.uge.wordrawidx.ui.theme.WordrawidTheme // Pour la Preview
 
-@SuppressLint("ConfigurationScreenWidthHeight") // Gardé si vous utilisez explicitement width/height
+@SuppressLint("ConfigurationScreenWidthHeight")
 @Composable
 fun VictoryScreen(
     onPlayAgain: () -> Unit,
-    modifier: Modifier = Modifier // Bonne pratique
+    modifier: Modifier = Modifier
 ) {
     val configuration = LocalConfiguration.current
+    val isLandscape = configuration.orientation == Configuration.ORIENTATION_LANDSCAPE
     val screenWidthDp = configuration.screenWidthDp
-    val isLargeScreen = screenWidthDp >= 600 // Seuil pour grand écran
+    // Déterminer si c'est un grand écran (tablette) ou un écran plus petit
+    val isLargeScreen = screenWidthDp >= 600 // Seuil pour "grand écran"
+
+    // Ajustements en fonction de la taille et de l'orientation
+    val cardMaxWidthFraction = if (isLargeScreen) 0.6f else if (isLandscape) 0.7f else 0.9f
+    val cardCornerRadius = if (isLargeScreen) 24.dp else 16.dp
+    val cardElevation = if (isLargeScreen) 12.dp else 8.dp
+    val contentPadding = if (isLargeScreen) 32.dp else 24.dp
+    val titleTextStyle = if (isLargeScreen) MaterialTheme.typography.displaySmall else MaterialTheme.typography.headlineMedium
+    val bodyTextStyle = if (isLargeScreen) MaterialTheme.typography.titleLarge else MaterialTheme.typography.titleMedium
+    val buttonTextStyle = if (isLargeScreen) MaterialTheme.typography.titleMedium else MaterialTheme.typography.titleSmall
+    val buttonHeight = if (isLargeScreen) 60.dp else 56.dp
 
     Box(
-        modifier = modifier // Utilisation du modifier
+        modifier = modifier
             .fillMaxSize()
-            .background(MaterialTheme.colorScheme.background.copy(alpha = 0.5f)), // Léger fond pour voir les confettis
+            // Un fond subtil pour que les confettis soient plus visibles
+            .background(MaterialTheme.colorScheme.scrim.copy(alpha = 0.1f)),
         contentAlignment = Alignment.Center
     ) {
         KonfettiView(
             modifier = Modifier.fillMaxSize(),
-            parties = rememberVictoryConfettiParty(), // Externalisé pour la lisibilité
+            parties = rememberVictoryConfettiParty(), // Configuration des confettis
         )
         Card(
-            shape = RoundedCornerShape(if (isLargeScreen) 24.dp else 16.dp),
+            shape = RoundedCornerShape(cardCornerRadius),
             colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.primaryContainer),
-            elevation = CardDefaults.cardElevation(defaultElevation = if (isLargeScreen) 12.dp else 8.dp),
+            elevation = CardDefaults.cardElevation(defaultElevation = cardElevation),
             modifier = Modifier
-                .fillMaxWidth(if (isLargeScreen) 0.6f else 0.9f)
-                .wrapContentHeight()
+                .fillMaxWidth(cardMaxWidthFraction)
+                .wrapContentHeight() // S'adapte à la hauteur du contenu
         ) {
             Column(
                 modifier = Modifier
-                    .padding(if (isLargeScreen) 32.dp else 24.dp)
+                    .padding(contentPadding)
                     .fillMaxWidth(),
                 horizontalAlignment = Alignment.CenterHorizontally,
-                verticalArrangement = Arrangement.Center // Pour centrer le contenu si la carte est grande
+                verticalArrangement = Arrangement.Center
             ) {
                 Text(
                     text = "Félicitations !",
-                    style = if (isLargeScreen) MaterialTheme.typography.displaySmall else MaterialTheme.typography.headlineLarge, // Styles ajustés
+                    style = titleTextStyle,
                     color = MaterialTheme.colorScheme.onPrimaryContainer
                 )
                 Spacer(modifier = Modifier.height(if (isLargeScreen) 24.dp else 16.dp))
                 Text(
                     text = "Vous avez gagné la partie.",
-                    style = if (isLargeScreen) MaterialTheme.typography.titleLarge else MaterialTheme.typography.titleMedium, // Styles ajustés
+                    style = bodyTextStyle,
                     color = MaterialTheme.colorScheme.onPrimaryContainer,
                     modifier = Modifier.padding(horizontal = if (isLargeScreen) 16.dp else 0.dp)
                 )
@@ -76,14 +91,12 @@ fun VictoryScreen(
                 TextButton(
                     onClick = onPlayAgain,
                     modifier = Modifier
-                        // .defaultMinSize(minWidth = if (isLargeScreen) 200.dp else 150.dp) // Peut être géré par le padding
-                        .height(56.dp) // Hauteur standard
-                        .fillMaxWidth(0.8f) // Largeur du bouton
+                        .fillMaxWidth(0.8f) // Bouton un peu moins large que la carte
+                        .height(buttonHeight)
                 ) {
                     Text(
                         text = "Rejouer",
-                        style = if (isLargeScreen) MaterialTheme.typography.titleMedium else MaterialTheme.typography.titleSmall // Styles ajustés
-                        // La couleur est gérée par TextButton et MaterialTheme
+                        style = buttonTextStyle
                     )
                 }
             }
@@ -91,46 +104,36 @@ fun VictoryScreen(
     }
 }
 
-// Externalisation de la configuration des confettis pour la lisibilité
 @Composable
 private fun rememberVictoryConfettiParty(): List<Party> {
-    // Utiliser les couleurs du thème actuel pour les confettis
     val primaryColorArgb = MaterialTheme.colorScheme.primary.toArgb()
     val secondaryColorArgb = MaterialTheme.colorScheme.secondary.toArgb()
-    val tertiaryColorArgb = MaterialTheme.colorScheme.tertiary.toArgb() // Autre couleur pour la variété
+    val tertiaryColorArgb = MaterialTheme.colorScheme.tertiary.toArgb()
 
-    return remember { // `remember` pour éviter la recréation à chaque recomposition
+    return remember {
         listOf(
             Party(
-                emitter = Emitter(duration = 3000, TimeUnit.MILLISECONDS).perSecond(100), // Plus longue durée, plus de confettis
-                position = Position.Relative(0.5, 0.0), // Commence en haut au centre
-                // Angle de diffusion pour couvrir l'écran
-                angle = 270, // Vers le bas
-                spread = 90,  // Étalement horizontal
-                speed = 15f,   // Vitesse initiale
+                emitter = Emitter(duration = 3000, TimeUnit.MILLISECONDS).perSecond(100),
+                position = Position.Relative(0.5, 0.0),
+                angle = 270,
+                spread = 90,
+                speed = 15f,
                 maxSpeed = 40f,
                 damping = 0.9f,
                 size = listOf(Size.SMALL, Size.MEDIUM),
                 colors = listOf(primaryColorArgb, secondaryColorArgb, tertiaryColorArgb),
-                fadeOutEnabled = true, // Pour une disparition en douceur
+                fadeOutEnabled = true,
                 timeToLive = 3000L
             )
         )
     }
 }
 
-
-@Preview(name = "Victory Screen Small", widthDp = 360, heightDp = 640, showBackground = true)
+@Preview(name = "Victory Portrait", device = Devices.PHONE)
+@Preview(name = "Victory Landscape", device = Devices.PHONE, widthDp = 720, heightDp = 360)
+@Preview(name = "Victory Tablet Portrait", device = Devices.TABLET, widthDp = 768, heightDp = 1024)
 @Composable
-fun VictoryScreenPreview_Small() {
-    WordrawidTheme {
-        VictoryScreen(onPlayAgain = {})
-    }
-}
-
-@Preview(name = "Victory Screen Large", widthDp = 800, heightDp = 600, showBackground = true)
-@Composable
-fun VictoryScreenPreview_Large() {
+fun VictoryScreenResponsivePreview() {
     WordrawidTheme {
         VictoryScreen(onPlayAgain = {})
     }

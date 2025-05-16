@@ -1,18 +1,13 @@
-package fr.uge.wordrawidx.view.components // MODIFIÉ: Package
+package fr.uge.wordrawidx.view.components
 
+import android.annotation.SuppressLint
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
-import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.aspectRatio
-import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.* // Import pour BoxWithConstraints
 import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
-import androidx.compose.foundation.lazy.grid.itemsIndexed // Utiliser itemsIndexed pour plus de flexibilité
+import androidx.compose.foundation.lazy.grid.itemsIndexed
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.CardDefaults
@@ -22,11 +17,12 @@ import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.remember // Pour getCellIndices
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.min // Pour min(dp, dp)
 import fr.uge.wordrawidx.model.GameState
 
 @Composable
@@ -34,7 +30,7 @@ fun GameBoard(
     gameState: GameState,
     modifier: Modifier = Modifier
 ) {
-    val boardSize = gameState.boardSize // Utiliser la taille du gameState
+    val boardSize = gameState.boardSize
     val cellIndicesSnakeOrder = remember(boardSize) { getCellIndicesSnakeOrder(boardSize) }
     val cornerRadius = 24.dp
 
@@ -42,31 +38,28 @@ fun GameBoard(
         modifier = modifier
             .fillMaxWidth()
             .aspectRatio(1f)
-            .shadow(8.dp, RoundedCornerShape(cornerRadius), clip = false) // Ombre externe
-            .border(2.dp, MaterialTheme.colorScheme.outlineVariant, RoundedCornerShape(cornerRadius)), // Bordure thématique
+            .shadow(8.dp, RoundedCornerShape(cornerRadius), clip = false)
+            .border(2.dp, MaterialTheme.colorScheme.outlineVariant, RoundedCornerShape(cornerRadius)),
         shape = RoundedCornerShape(cornerRadius),
         colors = CardDefaults.elevatedCardColors(
-            containerColor = MaterialTheme.colorScheme.surface // Fond de la carte
+            containerColor = MaterialTheme.colorScheme.surface
         ),
-        elevation = CardDefaults.elevatedCardElevation(defaultElevation = 0.dp) // L'ombre est déjà gérée par le modificateur .shadow
+        elevation = CardDefaults.elevatedCardElevation(defaultElevation = 0.dp)
     ) {
         LazyVerticalGrid(
             columns = GridCells.Fixed(boardSize),
             modifier = Modifier
                 .fillMaxSize()
-                .padding(4.dp), // Padding interne pour les cellules
+                .padding(4.dp),
             verticalArrangement = Arrangement.spacedBy(2.dp),
             horizontalArrangement = Arrangement.spacedBy(2.dp)
         ) {
-            // cellIndicesSnakeOrder contient les indices de case (0 à N-1) dans l'ordre visuel du serpentin
             itemsIndexed(cellIndicesSnakeOrder) { visualGridIndex, gameBoardCellIndex ->
                 BoardCell(
-                    visualNumber = visualGridIndex + 1, // Le numéro affiché (1 à N)
+                    visualNumber = visualGridIndex + 1,
                     isPlayerOnCell = gameBoardCellIndex == gameState.playerPosition,
                     isPlayerMoving = gameState.isPlayerMoving && gameBoardCellIndex == gameState.playerPosition,
-                    // Pour la couleur, on se base sur la position logique (non-serpentin)
-                    // Ou on peut simplifier en utilisant visualGridIndex si l'alternance est purement visuelle
-                    isEvenCell = run { // Calcul de la parité pour la couleur de fond
+                    isEvenCell = run {
                         val logicalRow = gameBoardCellIndex / boardSize
                         val logicalCol = gameBoardCellIndex % boardSize
                         (logicalRow + logicalCol) % 2 == 0
@@ -77,6 +70,7 @@ fun GameBoard(
     }
 }
 
+@SuppressLint("UnusedBoxWithConstraintsScope")
 @Composable
 fun BoardCell(
     visualNumber: Int,
@@ -85,25 +79,28 @@ fun BoardCell(
     isEvenCell: Boolean,
     modifier: Modifier = Modifier
 ) {
-    val cellColor = if (isEvenCell) MaterialTheme.colorScheme.surfaceVariant else MaterialTheme.colorScheme.surfaceContainerHighest // Couleurs thématiques
+    val cellColor = if (isEvenCell) MaterialTheme.colorScheme.surfaceVariant else MaterialTheme.colorScheme.surfaceContainerHighest
 
     val scale by animateFloatAsState(
-        targetValue = if (isPlayerMoving && isPlayerOnCell) 1.2f else 1.0f, // Animation uniquement si le joueur est sur la case et bouge
+        targetValue = if (isPlayerMoving && isPlayerOnCell) 1.2f else 1.0f,
         label = "playerScaleAnimation"
     )
 
     Surface(
-        modifier = modifier.aspectRatio(1f),
+        modifier = modifier.aspectRatio(1f), // Cellule carrée
         color = cellColor,
-        tonalElevation = 1.dp // Légère élévation pour chaque cellule
+        tonalElevation = 1.dp
     ) {
-        Box(
+        BoxWithConstraints( // Pour obtenir la taille de la cellule pour le pion
             modifier = Modifier.fillMaxSize(),
-            contentAlignment = Alignment.Center // Centre le pion
         ) {
+            // Le `this` ici est `BoxWithConstraintsScope` qui donne `constraints.maxWidth` et `maxHeight`
+            val cellSize = min(constraints.maxWidth.dp, constraints.maxHeight.dp) // La cellule est carrée, donc maxWidth devrait suffire
+            val pionDiameter = cellSize * 0.5f // Pion prend 50% de la taille de la cellule
+
             Text(
                 text = visualNumber.toString(),
-                style = MaterialTheme.typography.labelSmall, // Plus petit pour ne pas surcharger
+                style = MaterialTheme.typography.labelSmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                 modifier = Modifier
                     .align(Alignment.TopStart)
@@ -111,21 +108,22 @@ fun BoardCell(
             )
             if (isPlayerOnCell) {
                 Surface(
-                    modifier = Modifier.size((24 * scale).dp), // Taille du pion, animé
+                    modifier = Modifier
+                        .size(pionDiameter * scale) // Taille adaptative du pion
+                        .align(Alignment.Center), // S'assurer qu'il est centré
                     shape = CircleShape,
-                    color = MaterialTheme.colorScheme.primary, // Couleur du pion
-                    tonalElevation = 4.dp // Ombre pour le pion
+                    color = MaterialTheme.colorScheme.primary,
+                    tonalElevation = 4.dp
                 ) {}
             }
         }
     }
 }
 
-// Renommée pour clarifier qu'elle retourne les indices dans l'ordre du serpentin
 private fun getCellIndicesSnakeOrder(boardSize: Int): List<Int> =
-    List(boardSize * boardSize) { it } // Crée une liste de 0 à (N*N - 1)
-        .chunked(boardSize) // Sépare en lignes
+    List(boardSize * boardSize) { it }
+        .chunked(boardSize)
         .mapIndexed { rowIndex, row ->
-            if (rowIndex % 2 == 0) row else row.reversed() // Inverse les lignes impaires
+            if (rowIndex % 2 == 0) row else row.reversed()
         }
-        .flatten() // Remet tout dans une seule liste
+        .flatten()
