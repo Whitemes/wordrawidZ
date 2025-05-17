@@ -48,7 +48,7 @@ fun GameBoard(
     ) {
         // 1. Image de fond pour le plateau
         Image(
-            painter = painterResource(id = R.drawable.img_board_background), // VOTRE IMAGE DE FOND
+            painter = painterResource(id = R.drawable.img_maze_background), // VOTRE IMAGE DE FOND
             contentDescription = "Fond du plateau de jeu",
             contentScale = ContentScale.Crop, // ou FillBounds, selon l'image et l'effet désiré
             modifier = Modifier.fillMaxSize()
