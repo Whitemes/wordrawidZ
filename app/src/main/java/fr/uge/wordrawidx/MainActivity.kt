@@ -1,9 +1,11 @@
 package fr.uge.wordrawidx
 
+import android.os.Build
 import android.os.Bundle
 import android.util.Log
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
+import androidx.annotation.RequiresApi
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.saveable.rememberSaveable
 import fr.uge.wordrawidx.controller.NavigationController
@@ -13,9 +15,10 @@ import fr.uge.wordrawidx.view.screens.HomeScreen
 import fr.uge.wordrawidx.view.screens.VictoryScreen
 import fr.uge.wordrawidx.view.screens.AccelerometerMazeScreen
 import fr.uge.wordrawidx.ui.theme.WordrawidTheme
-import fr.uge.wordrawidx.view.screens.MiniGameResultHolder
+import fr.uge.wordrawidx.utils.MiniGameResultHolder
 
 class MainActivity : ComponentActivity() {
+    @RequiresApi(Build.VERSION_CODES.VANILLA_ICE_CREAM)
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContent {
@@ -29,6 +32,7 @@ class MainActivity : ComponentActivity() {
     }
 }
 
+@RequiresApi(Build.VERSION_CODES.VANILLA_ICE_CREAM)
 @Composable
 fun AppNavigation(navController: NavigationController) {
     Log.d("AppNavigation", "Current Screen: ${navController.currentScreen}. NewGameFlag: ${MiniGameResultHolder.newGameRequestedFromVictoryOrHome}")
