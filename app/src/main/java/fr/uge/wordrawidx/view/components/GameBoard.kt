@@ -3,15 +3,13 @@ package fr.uge.wordrawidx.view.components
 import android.annotation.SuppressLint
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.foundation.Image
-import androidx.compose.foundation.background
 import androidx.compose.foundation.border
-// import androidx.compose.foundation.border // Peut ne plus être nécessaire si l'image de fond a des bordures
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.itemsIndexed
-import androidx.compose.foundation.shape.RoundedCornerShape // Peut encore être utile pour clipper les coins du Box global
-import androidx.compose.material3.MaterialTheme // Pour les couleurs et la typographie
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -19,15 +17,17 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip // Pour clipper le Box global
-import androidx.compose.ui.graphics.Color // Pour des couleurs de fond de cellule transparentes ou semi-transparentes
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.clipToBounds
 import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.graphics.painter.Painter
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.min
 import fr.uge.wordrawidx.model.GameState
-import fr.uge.wordrawidx.R // Pour R.drawable
+import fr.uge.wordrawidx.model.CaseHintType
+import fr.uge.wordrawidx.R
 
 @Composable
 fun GameBoard(
@@ -36,47 +36,45 @@ fun GameBoard(
 ) {
     val boardSize = gameState.boardSize
     val cellIndicesSnakeOrder = remember(boardSize) { getCellIndicesSnakeOrder(boardSize) }
-    val cornerRadius = 24.dp // Rayon pour les coins du plateau si vous voulez les arrondir
+    val cornerRadius = 24.dp
 
-    // Box principal pour superposer l'image de fond et la grille
     Box(
         modifier = modifier
             .fillMaxWidth()
-            .aspectRatio(1f) // Garder le plateau carré
-            .clip(RoundedCornerShape(cornerRadius)) // Arrondir les coins de l'ensemble du plateau
-        // .shadow(8.dp, RoundedCornerShape(cornerRadius)) // Optionnel: ombre globale
+            .aspectRatio(1f)
+            .clip(RoundedCornerShape(cornerRadius))
     ) {
-        // 1. Image de fond pour le plateau
+        // Plateau de fond
         Image(
-            painter = painterResource(id = R.drawable.img_maze_background), // VOTRE IMAGE DE FOND
+            painter = painterResource(id = R.drawable.img_maze_background),
             contentDescription = "Fond du plateau de jeu",
-            contentScale = ContentScale.Crop, // ou FillBounds, selon l'image et l'effet désiré
+            contentScale = ContentScale.Crop,
             modifier = Modifier.fillMaxSize()
         )
 
-        // 2. Grille des cellules par-dessus l'image de fond
         LazyVerticalGrid(
             columns = GridCells.Fixed(boardSize),
             modifier = Modifier
                 .fillMaxSize()
-                // Padding pour que les cellules ne touchent pas les bords de l'image de fond
-                // Ajustez ce padding en fonction du design de votre image de fond
-                .padding(16.dp),
-            verticalArrangement = Arrangement.spacedBy(4.dp), // Espacement entre les lignes de cellules
-            horizontalArrangement = Arrangement.spacedBy(4.dp) // Espacement entre les cellules d'une ligne
+                .padding(0.dp),
+            verticalArrangement = Arrangement.spacedBy(0.dp),
+            horizontalArrangement = Arrangement.spacedBy(0.dp)
         ) {
             itemsIndexed(cellIndicesSnakeOrder) { visualGridIndex, gameBoardCellIndex ->
+                val revealedCell = gameState.getHintForCell(gameBoardCellIndex)
                 BoardCell(
                     visualNumber = visualGridIndex + 1,
                     isPlayerOnCell = gameBoardCellIndex == gameState.playerPosition,
                     isPlayerMoving = gameState.isPlayerMoving && gameBoardCellIndex == gameState.playerPosition,
-                    isEvenCell = run { // Vous pouvez changer cette logique si les couleurs de cellules ne sont plus utiles
+                    isEvenCell = run {
                         val logicalRow = gameBoardCellIndex / boardSize
                         val logicalCol = gameBoardCellIndex % boardSize
                         (logicalRow + logicalCol) % 2 == 0
                     },
-                    // Potentiellement passer une image spécifique pour la case si besoin
-                    // cellBackgroundImageId = R.drawable.some_cell_image (si la case a sa propre image)
+                    revealedCell = revealedCell,
+                    mysteryImageRes = gameState.mysteryObject?.imageRes,
+                    cellIndex = gameBoardCellIndex,
+                    boardSize = boardSize
                 )
             }
         }
@@ -89,63 +87,81 @@ fun BoardCell(
     visualNumber: Int,
     isPlayerOnCell: Boolean,
     isPlayerMoving: Boolean,
-    isEvenCell: Boolean, // Peut être utilisé pour une légère variation de teinte ou ignoré
+    isEvenCell: Boolean,
+    revealedCell: fr.uge.wordrawidx.model.RevealedCell?,
+    mysteryImageRes: Int?,
+    cellIndex: Int,
+    boardSize: Int,
     modifier: Modifier = Modifier
-    // cellBackgroundImageId: Int? = null // Optionnel: pour une image de fond par cellule
 ) {
-    // Couleur de fond des cellules:
-    // Si vous avez une image de fond pour le plateau, les cellules pourraient être transparentes
-    // ou avoir une couleur semi-transparente pour laisser voir l'image de fond du plateau.
     val cellBackgroundColor = if (isEvenCell) {
-        MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.3f) // Semi-transparent
+        MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.22f)
     } else {
-        MaterialTheme.colorScheme.surfaceContainerHighest.copy(alpha = 0.3f) // Semi-transparent
+        MaterialTheme.colorScheme.surfaceContainerHighest.copy(alpha = 0.22f)
     }
-    // Ou complètement transparent si l'image de fond du plateau a déjà des délimitations de cases
-    // val cellBackgroundColor = Color.Transparent
 
     val scaleFactor by animateFloatAsState(
-        targetValue = if (isPlayerMoving && isPlayerOnCell) 1.2f else 1.0f,
+        targetValue = if (isPlayerMoving && isPlayerOnCell) 1.15f else 1.0f,
         label = "playerScaleAnimation"
     )
 
-    Surface( // Surface peut toujours être utile pour le regroupement et l'élévation
+    Surface(
         modifier = modifier
             .aspectRatio(1f)
-            // Optionnel: légère bordure pour délimiter les cellules si le fond est transparent
-            .border(0.5.dp, MaterialTheme.colorScheme.outline.copy(alpha = 0.5f), RoundedCornerShape(4.dp)),
-        color = cellBackgroundColor, // Appliquer la couleur de fond (potentiellement (semi-)transparente)
-        shape = RoundedCornerShape(4.dp), // Légers coins arrondis pour les cellules
-        tonalElevation = 0.dp // Peut-être pas d'élévation si le style est plus plat
+            .border(0.5.dp, MaterialTheme.colorScheme.outline.copy(alpha = 0.45f), RoundedCornerShape(4.dp)),
+        color = cellBackgroundColor,
+        shape = RoundedCornerShape(4.dp),
+        tonalElevation = 0.dp
     ) {
         BoxWithConstraints(
-            modifier = Modifier.fillMaxSize(),
+            modifier = Modifier.fillMaxSize().clipToBounds(),
         ) {
             val cellSize = min(constraints.maxWidth.dp, constraints.maxHeight.dp)
-            val pawnImageSize = cellSize * 0.7f // Ajustez selon la taille de votre pion
+            val pawnImageSize = cellSize * 0.75f
 
-            // Optionnel: Si chaque cellule a sa propre image de fond
-            // cellBackgroundImageId?.let { imageId ->
-            //     Image(
-            //         painter = painterResource(id = imageId),
-            //         contentDescription = "Fond de la case",
-            //         contentScale = ContentScale.Crop,
-            //         modifier = Modifier.fillMaxSize()
-            //     )
-            // }
+            // Affichage de l’indice si case révélée
+            if (revealedCell != null) {
+                if (revealedCell.hintType == CaseHintType.SEMANTIC_WORD && revealedCell.hintContent.isNotBlank()) {
+                    Text(
+                        text = revealedCell.hintContent,
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.primary,
+                        modifier = Modifier.align(Alignment.Center)
+                    )
+                }
+                else if (revealedCell.hintType == CaseHintType.IMAGE && mysteryImageRes != null) {
+                    PortionOfImageInCell(
+                        painter = painterResource(id = mysteryImageRes),
+                        portionIndex = cellIndex,
+                        gridSize = boardSize,
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .align(Alignment.Center)
+                    )
+                }
+                else {
+                    Text(
+                        text = "⚠️",
+                        style = MaterialTheme.typography.labelLarge,
+                        color = MaterialTheme.colorScheme.error,
+                        modifier = Modifier.align(Alignment.Center)
+                    )
+                }
+            } else {
+                Text(
+                    text = visualNumber.toString(),
+                    style = MaterialTheme.typography.labelMedium,
+                    color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.8f),
+                    modifier = Modifier
+                        .align(Alignment.TopStart)
+                        .padding(4.dp)
+                )
+            }
 
-            Text(
-                text = visualNumber.toString(),
-                style = MaterialTheme.typography.labelMedium, // Ajustez la taille/style
-                color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.8f), // Couleur harmonisée
-                modifier = Modifier
-                    .align(Alignment.TopStart)
-                    .padding(4.dp)
-            )
-
+            // Le pion toujours par-dessus tout
             if (isPlayerOnCell) {
                 Image(
-                    painter = painterResource(id = R.drawable.ic_player_pawn), // Votre image de pion
+                    painter = painterResource(id = R.drawable.ic_player_pawn),
                     contentDescription = "Pion du joueur",
                     contentScale = ContentScale.Fit,
                     modifier = Modifier
@@ -161,7 +177,39 @@ fun BoardCell(
     }
 }
 
-// getCellIndicesSnakeOrder reste la même
+/**
+ * Découpe et affiche la portion de l'image mystère correspondant à la cellule du plateau.
+ */
+@Composable
+fun PortionOfImageInCell(
+    painter: Painter,
+    portionIndex: Int,
+    gridSize: Int = 5,
+    @SuppressLint("ModifierParameter") modifier: Modifier = Modifier
+) {
+    val row = portionIndex / gridSize
+    val col = portionIndex % gridSize
+    val portionSize = 1f / gridSize
+
+    Box(
+        modifier = modifier.clipToBounds()
+    ) {
+        Image(
+            painter = painter,
+            contentDescription = "Portion de l'image mystère",
+            contentScale = ContentScale.FillBounds,
+            modifier = Modifier
+                .matchParentSize()
+                .graphicsLayer {
+                    translationX = -col * size.width * portionSize
+                    translationY = -row * size.height * portionSize
+                    scaleX = gridSize.toFloat()
+                    scaleY = gridSize.toFloat()
+                }
+        )
+    }
+}
+
 private fun getCellIndicesSnakeOrder(boardSize: Int): List<Int> =
     List(boardSize * boardSize) { it }
         .chunked(boardSize)

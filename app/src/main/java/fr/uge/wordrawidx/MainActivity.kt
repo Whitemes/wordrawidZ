@@ -10,12 +10,12 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.saveable.rememberSaveable
 import fr.uge.wordrawidx.controller.NavigationController
 import fr.uge.wordrawidx.navigation.Screen
-import fr.uge.wordrawidx.view.screens.GameScreen
 import fr.uge.wordrawidx.view.screens.HomeScreen
 import fr.uge.wordrawidx.view.screens.VictoryScreen
 import fr.uge.wordrawidx.view.screens.AccelerometerMazeScreen
 import fr.uge.wordrawidx.ui.theme.WordrawidTheme
 import fr.uge.wordrawidx.utils.MiniGameResultHolder
+import fr.uge.wordrawidx.view.screens.GameScreen
 
 class MainActivity : ComponentActivity() {
     @RequiresApi(Build.VERSION_CODES.VANILLA_ICE_CREAM)

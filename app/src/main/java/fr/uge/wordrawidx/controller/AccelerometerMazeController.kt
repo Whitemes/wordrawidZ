@@ -5,9 +5,11 @@ import android.hardware.Sensor
 import android.hardware.SensorEvent
 import android.hardware.SensorEventListener
 import android.hardware.SensorManager
+import android.os.Build
 import android.util.Log
 import android.view.Surface
 import android.view.WindowManager
+import androidx.annotation.RequiresApi
 import androidx.compose.ui.geometry.Offset
 import fr.uge.wordrawidx.model.DEFAULT_BALL_START_POSITION_GRID_UNITS
 import fr.uge.wordrawidx.model.MAZE_COLS
@@ -53,6 +55,7 @@ class AccelerometerMazeController(
         Log.d("MazeController", "Accelerometer listener unregistered")
     }
 
+    @RequiresApi(Build.VERSION_CODES.VANILLA_ICE_CREAM)
     fun setScreenDimensions(widthPx: Float, heightPx: Float, ballRpx: Float, targetRpx: Float) {
         if (widthPx <=0 || heightPx <=0) {
             Log.e("MazeController", "setScreenDimensions: Invalid screen dimensions ($widthPx, $heightPx). Aborting.")
@@ -85,10 +88,48 @@ class AccelerometerMazeController(
         Log.d("MazeController", "Dimensions set. Initial Ball Pos (px): ${mazeState.ballPosition}, cellW: $cellWidthPx, cellH: $cellHeightPx")
     }
 
+//    @RequiresApi(Build.VERSION_CODES.VANILLA_ICE_CREAM)
+//    override fun onSensorChanged(event: SensorEvent?) {
+//        if (mazeState.currentMiniGameState != MiniGameState.PLAYING) return
+//        if (screenWidthPx == 0f || screenHeightPx == 0f || cellWidthPx <=0f || cellHeightPx <=0f) {
+//            // Log.w("MazeController", "SensorChanged: Dimensions not ready.") // Peut être trop bruyant
+//            return
+//        }
+//
+//        event?.let {
+//            if (it.sensor.type == Sensor.TYPE_ACCELEROMETER) {
+//                val rawAccelX = it.values[0]
+//                val rawAccelY = it.values[1]
+//
+//                val displayRotation = windowManager.defaultDisplay.rotation
+//                var deviceRelativeAccelX = 0f
+//                var deviceRelativeAccelY = 0f
+//
+//                when (displayRotation) {
+//                    Surface.ROTATION_0 -> { deviceRelativeAccelX = -rawAccelX; deviceRelativeAccelY = rawAccelY }
+//                    Surface.ROTATION_90 -> { deviceRelativeAccelX = rawAccelY; deviceRelativeAccelY = rawAccelX }
+//                    Surface.ROTATION_180 -> { deviceRelativeAccelX = rawAccelX; deviceRelativeAccelY = -rawAccelY }
+//                    Surface.ROTATION_270 -> { deviceRelativeAccelX = -rawAccelY; deviceRelativeAccelY = -rawAccelX }
+//                }
+//
+//                val currentBallPos = mazeState.ballPosition
+//                val newX = currentBallPos.x + deviceRelativeAccelX * baseMoveFactor
+//                val newY = currentBallPos.y + deviceRelativeAccelY * baseMoveFactor
+//
+//                mazeState.updateBallPosition(
+//                    newX, newY,
+//                    screenWidthPx, screenHeightPx, ballRadiusPx,
+//                    cellWidthPx, cellHeightPx
+//                )
+//                checkWinCondition()
+//            }
+//        }
+//    }
+
+    @RequiresApi(Build.VERSION_CODES.VANILLA_ICE_CREAM)
     override fun onSensorChanged(event: SensorEvent?) {
         if (mazeState.currentMiniGameState != MiniGameState.PLAYING) return
-        if (screenWidthPx == 0f || screenHeightPx == 0f || cellWidthPx <=0f || cellHeightPx <=0f) {
-            // Log.w("MazeController", "SensorChanged: Dimensions not ready.") // Peut être trop bruyant
+        if (screenWidthPx == 0f || screenHeightPx == 0f || cellWidthPx <= 0f || cellHeightPx <= 0f) {
             return
         }
 
@@ -97,15 +138,30 @@ class AccelerometerMazeController(
                 val rawAccelX = it.values[0]
                 val rawAccelY = it.values[1]
 
-                val displayRotation = windowManager.defaultDisplay.rotation
-                var deviceRelativeAccelX = 0f
-                var deviceRelativeAccelY = 0f
+                // Utilisation moderne pour obtenir la rotation (API 30+)
+                val displayRotation = try {
+                    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
+                        context.display?.rotation ?: Surface.ROTATION_0
+                    } else {
+                        @Suppress("DEPRECATION")
+                        windowManager.defaultDisplay.rotation
+                    }
+                } catch (e: Exception) {
+                    Surface.ROTATION_0
+                }
 
-                when (displayRotation) {
-                    Surface.ROTATION_0 -> { deviceRelativeAccelX = -rawAccelX; deviceRelativeAccelY = rawAccelY }
-                    Surface.ROTATION_90 -> { deviceRelativeAccelX = rawAccelY; deviceRelativeAccelY = rawAccelX }
-                    Surface.ROTATION_180 -> { deviceRelativeAccelX = rawAccelX; deviceRelativeAccelY = -rawAccelY }
-                    Surface.ROTATION_270 -> { deviceRelativeAccelX = -rawAccelY; deviceRelativeAccelY = -rawAccelX }
+                Log.d(
+                    "MazeController",
+                    "displayRotation=$displayRotation, rawX=$rawAccelX, rawY=$rawAccelY"
+                )
+
+                // Vérifie sur ton device : ce mapping fonctionne sur la majorité des tablettes/phones modernes
+                val (deviceRelativeAccelX, deviceRelativeAccelY) = when (displayRotation) {
+                    Surface.ROTATION_0 -> Pair(-rawAccelX, rawAccelY)         // Portrait "normal"
+                    Surface.ROTATION_90 -> Pair(rawAccelY, rawAccelX)         // Paysage home à droite
+                    Surface.ROTATION_180 -> Pair(rawAccelX, -rawAccelY)       // Portrait inversé
+                    Surface.ROTATION_270 -> Pair(-rawAccelY, -rawAccelX)      // Paysage home à gauche
+                    else -> Pair(-rawAccelX, rawAccelY)
                 }
 
                 val currentBallPos = mazeState.ballPosition
@@ -122,8 +178,10 @@ class AccelerometerMazeController(
         }
     }
 
+
     override fun onAccuracyChanged(sensor: Sensor?, accuracy: Int) { /* Non utilisé */ }
 
+    @RequiresApi(Build.VERSION_CODES.VANILLA_ICE_CREAM)
     private fun checkWinCondition() {
         if (mazeState.currentMiniGameState != MiniGameState.PLAYING) return
         if (cellWidthPx <= 0f || cellHeightPx <= 0f) return
@@ -143,6 +201,7 @@ class AccelerometerMazeController(
         }
     }
 
+    @RequiresApi(Build.VERSION_CODES.VANILLA_ICE_CREAM)
     fun startGameTimer() {
         if (mazeState.currentMiniGameState != MiniGameState.PLAYING) return
         scope.launch {
@@ -162,6 +221,7 @@ class AccelerometerMazeController(
         }
     }
 
+    @RequiresApi(Build.VERSION_CODES.VANILLA_ICE_CREAM)
     fun resetGame() {
         if (screenWidthPx > 0f && screenHeightPx > 0f && cellWidthPx > 0f && cellHeightPx > 0f) {
             mazeState.reset(screenWidthPx, screenHeightPx, cellWidthPx, cellHeightPx)
