@@ -7,5 +7,6 @@ enum class Screen {
     Home,
     Game,
     Victory,
-    AccelerometerMaze
+    AccelerometerMaze,
+    ShakeGame
 }

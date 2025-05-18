@@ -16,6 +16,7 @@ import fr.uge.wordrawidx.view.screens.AccelerometerMazeScreen
 import fr.uge.wordrawidx.ui.theme.WordrawidTheme
 import fr.uge.wordrawidx.utils.MiniGameResultHolder
 import fr.uge.wordrawidx.view.screens.GameScreen
+import fr.uge.wordrawidx.view.screens.ShakeGameScreen
 
 class MainActivity : ComponentActivity() {
     @RequiresApi(Build.VERSION_CODES.VANILLA_ICE_CREAM)
@@ -71,6 +72,13 @@ fun AppNavigation(navController: NavigationController) {
                 MiniGameResultHolder.lastResultWasWin = wasMiniGameWon
                 // lastChallengedCell a été mis par GameScreen avant de naviguer vers le mini-jeu
                 navController.navigateTo(Screen.Game) // Retourner à GameScreen
+            }
+        )
+        Screen.ShakeGame -> ShakeGameScreen(
+            navigationController = navController,
+            onGameFinished = { won ->
+                MiniGameResultHolder.lastResultWasWin = won
+                navController.navigateTo(Screen.Game)
             }
         )
     }

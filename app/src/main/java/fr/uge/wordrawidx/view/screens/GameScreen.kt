@@ -258,6 +258,25 @@ fun GameScreen(
 
             Spacer(Modifier.height(16.dp))
 
+//            DiceButton(
+//                diceValue = gameState.lastDiceRoll,
+//                isRolling = gameState.isDiceRolling,
+//                onRollClick = {
+//                    gameController.rollDiceAndMove(
+//                        onChallengeRequired = { cellIdx ->
+//                            if (!gameState.isCellRevealed(cellIdx)) {
+//                                // Stocke la position et la cellule, puis pars dans le mini-jeu
+//                                MiniGameResultHolder.playerPositionBeforeMiniGame = gameState.playerPosition
+//                                MiniGameResultHolder.lastChallengedCell = cellIdx
+//                                MiniGameResultHolder.lastResultWasWin = null
+//                                navigationController.navigateTo(Screen.AccelerometerMaze)
+//                            }
+//                        },
+//                        onGameWin = onNavigateToVictory
+//                    )
+//                },
+//                modifier = Modifier.fillMaxWidth(0.8f)
+//            )
             DiceButton(
                 diceValue = gameState.lastDiceRoll,
                 isRolling = gameState.isDiceRolling,
@@ -265,11 +284,17 @@ fun GameScreen(
                     gameController.rollDiceAndMove(
                         onChallengeRequired = { cellIdx ->
                             if (!gameState.isCellRevealed(cellIdx)) {
-                                // Stocke la position et la cellule, puis pars dans le mini-jeu
                                 MiniGameResultHolder.playerPositionBeforeMiniGame = gameState.playerPosition
                                 MiniGameResultHolder.lastChallengedCell = cellIdx
                                 MiniGameResultHolder.lastResultWasWin = null
-                                navigationController.navigateTo(Screen.AccelerometerMaze)
+
+                                // LOGIQUE DE CHOIX DU JEU :
+                                if (cellIdx % 2 == 0) {
+//                                    navigationController.navigateTo(Screen.AccelerometerMaze)
+                                    navigationController.navigateTo(Screen.ShakeGame)
+                                } else {
+                                    navigationController.navigateTo(Screen.ShakeGame)
+                                }
                             }
                         },
                         onGameWin = onNavigateToVictory
@@ -277,6 +302,7 @@ fun GameScreen(
                 },
                 modifier = Modifier.fillMaxWidth(0.8f)
             )
+
 
             Spacer(Modifier.height(16.dp))
 
