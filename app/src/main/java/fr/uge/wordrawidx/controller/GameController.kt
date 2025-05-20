@@ -193,8 +193,9 @@ class GameController(
 
     // Appelé après succès au mini-jeu pour révéler la case
     fun revealHintForCell(cellIndex: Int) {
-        gameState.revealCell(cellIndex) // Correction : un seul argument
+        gameState.revealCell(cellIndex)
     }
+
 
     // Deviner le mot mystère
     fun tryToGuessWord(proposed: String): Boolean = gameState.tryGuessMysteryWord(proposed)

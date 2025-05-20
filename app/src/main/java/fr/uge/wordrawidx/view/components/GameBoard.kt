@@ -35,7 +35,7 @@ fun GameBoard(
     modifier: Modifier = Modifier
 ) {
     val boardSize = gameState.boardSize
-    val cellIndicesSnakeOrder = remember(boardSize) { getCellIndicesSnakeOrder(boardSize) }
+    val cellIndices = remember(boardSize) { List(boardSize * boardSize) { it } }
     val cornerRadius = 24.dp
 
     Box(
@@ -60,8 +60,8 @@ fun GameBoard(
             verticalArrangement = Arrangement.spacedBy(0.dp),
             horizontalArrangement = Arrangement.spacedBy(0.dp)
         ) {
-            itemsIndexed(cellIndicesSnakeOrder) { visualGridIndex, gameBoardCellIndex ->
-                val revealedCell = gameState.getHintForCell(gameBoardCellIndex)
+            itemsIndexed(cellIndices) { visualGridIndex, gameBoardCellIndex ->
+            val revealedCell = gameState.getHintForCell(gameBoardCellIndex)
                 BoardCell(
                     visualNumber = visualGridIndex + 1,
                     isPlayerOnCell = gameBoardCellIndex == gameState.playerPosition,
@@ -210,10 +210,10 @@ fun PortionOfImageInCell(
     }
 }
 
-private fun getCellIndicesSnakeOrder(boardSize: Int): List<Int> =
-    List(boardSize * boardSize) { it }
-        .chunked(boardSize)
-        .mapIndexed { rowIndex, row ->
-            if (rowIndex % 2 == 0) row else row.reversed()
-        }
-        .flatten()
+//private fun getCellIndicesSnakeOrder(boardSize: Int): List<Int> =
+//    List(boardSize * boardSize) { it }
+//        .chunked(boardSize)
+//        .mapIndexed { rowIndex, row ->
+//            if (rowIndex % 2 == 0) row else row.reversed()
+//        }
+//        .flatten()

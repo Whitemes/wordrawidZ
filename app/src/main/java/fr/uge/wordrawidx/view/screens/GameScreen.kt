@@ -308,6 +308,8 @@ fun GameScreen(
 
             GameStatusCard(gameState = gameState, modifier = Modifier.fillMaxWidth())
 
+            Text("🔍 Mot mystère : ${gameState.mysteryObject?.word ?: "?"}")
+
             Spacer(Modifier.height(16.dp))
 
             // Proposer un mot pour gagner

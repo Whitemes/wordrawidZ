@@ -89,10 +89,13 @@ class GameState(val boardSize: Int = BOARD_COLS_MAIN) {
     }
 
     fun setupMysteryAndHints() {
-        mysteryObject = MysteryBank.objects.random()
+        // ✅ NE PAS RE-TIRER si un mystère existe déjà
+        if (mysteryObject == null) {
+            mysteryObject = MysteryBank.objects.random()
+        }
         cellHints.clear()
-        val obj = mysteryObject ?: return
 
+        val obj = mysteryObject ?: return
         val totalCells = boardSize * boardSize
         val wordCount = minOf(10, obj.closeWords.size)
         val imageCount = totalCells - wordCount
@@ -109,6 +112,7 @@ class GameState(val boardSize: Int = BOARD_COLS_MAIN) {
             val word = obj.closeWords.getOrNull(i) ?: "[mot]"
             tempHints[cellIdx] = GameCellHint(type = CaseHintType.SEMANTIC_WORD, value = word)
         }
+
         for (i in 0 until totalCells) {
             cellHints.add(tempHints[i] ?: GameCellHint(type = CaseHintType.SEMANTIC_WORD, value = "[mot]"))
         }
@@ -141,6 +145,7 @@ class GameState(val boardSize: Int = BOARD_COLS_MAIN) {
             }
         }
     }
+
 
     fun tryGuessMysteryWord(proposed: String): Boolean {
         val win = proposed.trim().equals(mysteryObject?.word?.trim(), ignoreCase = true)
