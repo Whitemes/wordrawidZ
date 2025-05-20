@@ -19,6 +19,8 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.clipToBounds
+import androidx.compose.ui.draw.drawWithContent
+import androidx.compose.ui.graphics.drawscope.drawIntoCanvas
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.painter.Painter
 import androidx.compose.ui.layout.ContentScale
@@ -28,6 +30,7 @@ import androidx.compose.ui.unit.min
 import fr.uge.wordrawidx.model.GameState
 import fr.uge.wordrawidx.model.CaseHintType
 import fr.uge.wordrawidx.R
+
 
 @Composable
 fun GameBoard(
@@ -209,6 +212,7 @@ fun PortionOfImageInCell(
         )
     }
 }
+
 
 //private fun getCellIndicesSnakeOrder(boardSize: Int): List<Int> =
 //    List(boardSize * boardSize) { it }

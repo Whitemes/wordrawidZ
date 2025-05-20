@@ -199,6 +199,11 @@ fun GameScreen(
         )
     }
 
+    //CI DESSOUS DEBUG A SUPPRIMER
+    LaunchedEffect(Unit) {
+        gameController.revealAllCellsForDebug()
+    }
+
     var guessText by remember { mutableStateOf("") }
     var guessResult by remember { mutableStateOf<Boolean?>(null) }
     var currentChallengeCell by remember { mutableStateOf<Int?>(null) }
@@ -218,10 +223,11 @@ fun GameScreen(
         val cell = MiniGameResultHolder.lastChallengedCell
         val won = MiniGameResultHolder.lastResultWasWin
         if (cell != null && won != null) {
-            if (won) {
-                gameController.revealHintForCell(cell)
-                flipTrigger = !flipTrigger
-            }
+            //A REMETTRE
+//            if (won) {
+//                gameController.revealHintForCell(cell)
+//                flipTrigger = !flipTrigger
+//            }
             // Sinon, la case reste cachée
             currentChallengeCell = null
             MiniGameResultHolder.lastChallengedCell = null

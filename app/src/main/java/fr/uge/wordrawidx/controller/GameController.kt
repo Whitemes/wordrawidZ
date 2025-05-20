@@ -192,9 +192,17 @@ class GameController(
     }
 
     // Appelé après succès au mini-jeu pour révéler la case
-    fun revealHintForCell(cellIndex: Int) {
-        gameState.revealCell(cellIndex)
+//    fun revealHintForCell(cellIndex: Int) {
+//        gameState.revealCell(cellIndex)
+//    }
+
+    //CI DESSOUS DEBUG A SUPPRIMER
+    fun revealAllCellsForDebug() {
+        for (i in 0 until gameState.totalCells) {
+            gameState.revealCell(i)
+        }
     }
+
 
 
     // Deviner le mot mystère

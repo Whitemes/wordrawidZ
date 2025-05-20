@@ -65,7 +65,7 @@ data class GameCellHint(
     val imagePortionIndex: Int? = null // numéro portion si IMAGE
 )
 
-class GameState(val boardSize: Int = BOARD_COLS_MAIN) {
+class GameState(val boardSize: Int = BOARD_COLS_MAIN,  restoreMode: Boolean = false) {
     var playerPosition by mutableStateOf(0)
         internal set
     var lastDiceRoll by mutableStateOf(0)
@@ -84,39 +84,71 @@ class GameState(val boardSize: Int = BOARD_COLS_MAIN) {
         internal set
 
     init {
-        Log.d("GameState_Main", "Instance GameState initialisée/créée. PlayerPos: $playerPosition")
-        setupMysteryAndHints()
+        if (!restoreMode && mysteryObject == null) {
+            //Log.d("GameState_Main", "Instance GameState initialisée/créée. PlayerPos: $playerPosition")
+            setupMysteryAndHints()
+        }
     }
 
+//    fun setupMysteryAndHints() {
+//        // ✅ Blocage complet : si tout est déjà prêt, on ne refait rien
+//        if (mysteryObject != null && cellHints.isNotEmpty()) {
+//            Log.d("GameState_Debug", "setupMysteryAndHints SKIPPED — already initialized")
+//            return
+//        }
+//
+//        // ✅ Tirage du mot mystère si pas encore fait
+//        if (mysteryObject == null) {
+//            mysteryObject = MysteryBank.objects.random()
+//            Log.d("GameState_Debug", "Mystery object set: ${mysteryObject?.word}")
+//        }
+//
+//        cellHints.clear()
+//
+//        val obj = mysteryObject ?: return
+//        val totalCells = boardSize * boardSize
+//        val wordCount = minOf(10, obj.closeWords.size)
+//        val imageCount = totalCells - wordCount
+//
+//        val allCellIndices = (0 until totalCells).shuffled()
+//        val imageCellIndices = allCellIndices.take(imageCount)
+//        val wordCellIndices = allCellIndices.drop(imageCount)
+//
+//        val tempHints = MutableList<GameCellHint?>(totalCells) { null }
+//        for ((portionIdx, cellIdx) in imageCellIndices.withIndex()) {
+//            tempHints[cellIdx] = GameCellHint(type = CaseHintType.IMAGE, imagePortionIndex = portionIdx)
+//        }
+//        for ((i, cellIdx) in wordCellIndices.withIndex()) {
+//            val word = obj.closeWords.getOrNull(i) ?: "[mot]"
+//            tempHints[cellIdx] = GameCellHint(type = CaseHintType.SEMANTIC_WORD, value = word)
+//        }
+//
+//        for (i in 0 until totalCells) {
+//            cellHints.add(tempHints[i] ?: GameCellHint(type = CaseHintType.SEMANTIC_WORD, value = "[mot]"))
+//        }
+//
+//        Log.d("GameState_Debug", "setupMysteryAndHints DONE with ${cellHints.size} hints")
+//    }
+
+    //CI DESSOUS DEBUG A SUPPRIMER
     fun setupMysteryAndHints() {
-        // ✅ NE PAS RE-TIRER si un mystère existe déjà
-        if (mysteryObject == null) {
-            mysteryObject = MysteryBank.objects.random()
-        }
+        if (mysteryObject != null && cellHints.isNotEmpty()) return
+
+        mysteryObject = MysteryBank.objects.first { it.word == "souris" } // ou "guitare", "bouteille"
         cellHints.clear()
 
-        val obj = mysteryObject ?: return
         val totalCells = boardSize * boardSize
-        val wordCount = minOf(10, obj.closeWords.size)
-        val imageCount = totalCells - wordCount
-
-        val allCellIndices = (0 until totalCells).shuffled()
-        val imageCellIndices = allCellIndices.take(imageCount)
-        val wordCellIndices = allCellIndices.drop(imageCount)
-
-        val tempHints = MutableList<GameCellHint?>(totalCells) { null }
-        for ((portionIdx, cellIdx) in imageCellIndices.withIndex()) {
-            tempHints[cellIdx] = GameCellHint(type = CaseHintType.IMAGE, imagePortionIndex = portionIdx)
-        }
-        for ((i, cellIdx) in wordCellIndices.withIndex()) {
-            val word = obj.closeWords.getOrNull(i) ?: "[mot]"
-            tempHints[cellIdx] = GameCellHint(type = CaseHintType.SEMANTIC_WORD, value = word)
-        }
 
         for (i in 0 until totalCells) {
-            cellHints.add(tempHints[i] ?: GameCellHint(type = CaseHintType.SEMANTIC_WORD, value = "[mot]"))
+            cellHints.add(
+                GameCellHint(
+                    type = CaseHintType.IMAGE,
+                    imagePortionIndex = i // chaque cellule aura une portion unique
+                )
+            )
         }
     }
+
 
     internal fun updateDiceValue(value: Int) {
         lastDiceRoll = value
@@ -213,7 +245,7 @@ class GameState(val boardSize: Int = BOARD_COLS_MAIN) {
                 val mysteryIdx = bundle.getInt(KEY_MYSTERY_OBJ_IDX, 0)
                 val obj = MysteryBank.objects.getOrNull(mysteryIdx)
 
-                GameState(boardSize).apply {
+                GameState(boardSize, restoreMode = true).apply {
                     this.playerPosition = restoredPlayerPosition
                     this.lastDiceRoll = bundle.getInt(KEY_LAST_DICE_ROLL)
                     this.isGameWon = bundle.getBoolean(KEY_IS_GAME_WON, false)
