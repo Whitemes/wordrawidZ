@@ -12,16 +12,23 @@ import fr.uge.wordrawidx.controller.NavigationController
 import fr.uge.wordrawidx.navigation.Screen
 import fr.uge.wordrawidx.view.screens.HomeScreen
 import fr.uge.wordrawidx.view.screens.VictoryScreen
-import fr.uge.wordrawidx.view.screens.AccelerometerMazeScreen
+// import fr.uge.wordrawidx.view.screens.AccelerometerMazeScreen // ❌ DÉSACTIVÉ
 import fr.uge.wordrawidx.ui.theme.WordrawidTheme
 import fr.uge.wordrawidx.utils.MiniGameResultHolder
 import fr.uge.wordrawidx.view.screens.GameScreen
 import fr.uge.wordrawidx.view.screens.ShakeGameScreen
 
+/**
+ * MainActivity avec mini-jeu labyrinthe DÉSACTIVÉ
+ * Seul le ShakeGame est disponible pour les tests
+ */
 class MainActivity : ComponentActivity() {
     @RequiresApi(Build.VERSION_CODES.VANILLA_ICE_CREAM)
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+
+        Log.d("MainActivity", "Application WordrawidZ démarrée - Labyrinthe DÉSACTIVÉ")
+
         setContent {
             WordrawidTheme {
                 val navigationController = rememberSaveable(saver = NavigationController.Saver) {
@@ -36,21 +43,19 @@ class MainActivity : ComponentActivity() {
 @RequiresApi(Build.VERSION_CODES.VANILLA_ICE_CREAM)
 @Composable
 fun AppNavigation(navController: NavigationController) {
-    Log.d("AppNavigation", "Current Screen: ${navController.currentScreen}. NewGameFlag: ${MiniGameResultHolder.newGameRequestedFromVictoryOrHome}")
+    Log.d("AppNavigation", "Current Screen: ${navController.currentScreen}")
+
     when (navController.currentScreen) {
         Screen.Home -> HomeScreen(
             onPlayClicked = {
-                // Si le joueur clique sur "Jouer" depuis l'accueil,
-                // on veut s'assurer que si une partie précédente s'est terminée par une victoire,
-                // une NOUVELLE partie commence.
-                // Le drapeau newGameRequestedFromVictoryOrHome est déjà mis par VictoryScreen.
-                // GameScreen s'en occupera. Si on veut forcer un reset à chaque "Jouer" depuis Home :
-                // MiniGameResultHolder.newGameRequestedFromVictoryOrHome = true; // Forcerait un reset
                 Log.d("AppNavigation", "Play clicked from Home. Navigating to Game.")
                 navController.navigateTo(Screen.Game)
             },
-            onSettingsClicked = { /* TODO */ }
+            onSettingsClicked = {
+                Log.d("AppNavigation", "Settings clicked - TODO")
+            }
         )
+
         Screen.Game -> GameScreen(
             navigationController = navController,
             onNavigateToVictory = {
@@ -58,25 +63,27 @@ fun AppNavigation(navController: NavigationController) {
                 navController.navigateTo(Screen.Victory)
             }
         )
+
         Screen.Victory -> VictoryScreen(
             onPlayAgain = {
-                Log.d("AppNavigation", "Play Again from Victory. Setting newGameRequested flag and navigating to Home.")
-                MiniGameResultHolder.newGameRequestedFromVictoryOrHome = true // Important
+                Log.d("AppNavigation", "Play Again from Victory.")
+                MiniGameResultHolder.newGameRequestedFromVictoryOrHome = true
                 navController.navigateToHome()
             }
         )
-        Screen.AccelerometerMaze -> AccelerometerMazeScreen(
-            navigationController = navController,
-            onGameFinished = { wasMiniGameWon ->
-                Log.d("AppNavigation", "Mini-jeu AccelerometerMaze terminé. Gagné: $wasMiniGameWon. Storing result.")
-                MiniGameResultHolder.lastResultWasWin = wasMiniGameWon
-                // lastChallengedCell a été mis par GameScreen avant de naviguer vers le mini-jeu
-                navController.navigateTo(Screen.Game) // Retourner à GameScreen
-            }
-        )
+
+        // ❌ DÉSACTIVÉ : AccelerometerMaze
+        Screen.AccelerometerMaze -> {
+            Log.w("AppNavigation", "AccelerometerMaze DÉSACTIVÉ - Redirection vers ShakeGame")
+            // Redirection automatique vers ShakeGame
+            MiniGameResultHolder.lastResultWasWin = false // Éviter le blocage
+            navController.navigateTo(Screen.Game)
+        }
+
         Screen.ShakeGame -> ShakeGameScreen(
             navigationController = navController,
             onGameFinished = { won ->
+                Log.d("AppNavigation", "ShakeGame finished. Won: $won")
                 MiniGameResultHolder.lastResultWasWin = won
                 navController.navigateTo(Screen.Game)
             }
