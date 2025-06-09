@@ -2,6 +2,7 @@ package fr.uge.wordrawidx.view.components
 
 import android.annotation.SuppressLint
 import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.*
@@ -19,12 +20,15 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.clipToBounds
-import androidx.compose.ui.draw.drawWithContent
-import androidx.compose.ui.graphics.drawscope.drawIntoCanvas
+import androidx.compose.ui.graphics.ImageBitmap
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.painter.Painter
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.imageResource
 import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.unit.IntOffset
+import androidx.compose.ui.unit.IntSize
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.min
 import fr.uge.wordrawidx.model.GameState
@@ -64,7 +68,7 @@ fun GameBoard(
             horizontalArrangement = Arrangement.spacedBy(0.dp)
         ) {
             itemsIndexed(cellIndices) { visualGridIndex, gameBoardCellIndex ->
-            val revealedCell = gameState.getHintForCell(gameBoardCellIndex)
+                val revealedCell = gameState.getHintForCell(gameBoardCellIndex)
                 BoardCell(
                     visualNumber = visualGridIndex + 1,
                     isPlayerOnCell = gameBoardCellIndex == gameState.playerPosition,
@@ -122,7 +126,7 @@ fun BoardCell(
             val cellSize = min(constraints.maxWidth.dp, constraints.maxHeight.dp)
             val pawnImageSize = cellSize * 0.75f
 
-            // Affichage de l’indice si case révélée
+            // Affichage de l'indice si case révélée
             if (revealedCell != null) {
                 if (revealedCell.hintType == CaseHintType.SEMANTIC_WORD && revealedCell.hintContent.isNotBlank()) {
                     Text(
@@ -133,8 +137,9 @@ fun BoardCell(
                     )
                 }
                 else if (revealedCell.hintType == CaseHintType.IMAGE && mysteryImageRes != null) {
-                    PortionOfImageInCell(
-                        painter = painterResource(id = mysteryImageRes),
+                    // 🔥 NOUVELLE VERSION AVEC DÉCOUPAGE PRÉCIS
+                    PortionOfImageInCellFromBitmap(
+                        imageRes = mysteryImageRes,
                         portionIndex = cellIndex,
                         gridSize = boardSize,
                         modifier = Modifier
@@ -181,22 +186,92 @@ fun BoardCell(
 }
 
 /**
- * Découpe et affiche la portion de l'image mystère correspondant à la cellule du plateau.
+ * 🔥 NOUVELLE FONCTION - Version avec ressource d'image directement
+ */
+@Composable
+fun PortionOfImageInCellFromBitmap(
+    imageRes: Int,
+    portionIndex: Int,
+    gridSize: Int = 5,
+    modifier: Modifier = Modifier
+) {
+    val context = LocalContext.current
+    val imageBitmap = remember(imageRes) {
+        ImageBitmap.imageResource(context.resources, imageRes)
+    }
+
+    PortionOfImageInCellBitmap(
+        imageBitmap = imageBitmap,
+        portionIndex = portionIndex,
+        gridSize = gridSize,
+        modifier = modifier
+    )
+}
+
+/**
+ * 🔥 NOUVELLE FONCTION - Version avec ImageBitmap
+ */
+@Composable
+fun PortionOfImageInCellBitmap(
+    imageBitmap: ImageBitmap,
+    portionIndex: Int,
+    gridSize: Int = 5,
+    modifier: Modifier = Modifier
+) {
+    // Calcul des coordonnées de la cellule dans la grille
+    val row = portionIndex / gridSize
+    val col = portionIndex % gridSize
+
+    Canvas(modifier = modifier.fillMaxSize()) {
+        val canvasWidth = size.width
+        val canvasHeight = size.height
+
+        // Dimensions de l'image source
+        val imageWidth = imageBitmap.width.toFloat()
+        val imageHeight = imageBitmap.height.toFloat()
+
+        // Calcul des dimensions d'une portion dans l'image source
+        val portionWidth = imageWidth / gridSize
+        val portionHeight = imageHeight / gridSize
+
+        // Rectangle source : la portion à extraire de l'image
+        val srcLeft = (col * portionWidth).toInt()
+        val srcTop = (row * portionHeight).toInt()
+        val srcRight = ((col + 1) * portionWidth).toInt().coerceAtMost(imageBitmap.width)
+        val srcBottom = ((row + 1) * portionHeight).toInt().coerceAtMost(imageBitmap.height)
+
+        // Rectangle de destination : où dessiner sur le canvas (toute la surface)
+        val dstLeft = 0f
+        val dstTop = 0f
+        val dstRight = canvasWidth
+        val dstBottom = canvasHeight
+
+        // Dessin avec drawImage pour un découpage précis
+        drawImage(
+            image = imageBitmap,
+            srcOffset = IntOffset(srcLeft, srcTop),
+            srcSize = IntSize(srcRight - srcLeft, srcBottom - srcTop),
+            dstOffset = IntOffset(dstLeft.toInt(), dstTop.toInt()),
+            dstSize = IntSize((dstRight - dstLeft).toInt(), (dstBottom - dstTop).toInt())
+        )
+    }
+}
+
+/**
+ * 📚 ANCIENNE FONCTION - Gardée pour référence/compatibilité
+ * Peut être supprimée une fois que vous avez testé la nouvelle version
  */
 @Composable
 fun PortionOfImageInCell(
     painter: Painter,
     portionIndex: Int,
     gridSize: Int = 5,
-    @SuppressLint("ModifierParameter") modifier: Modifier = Modifier
+    modifier: Modifier = Modifier
 ) {
     val row = portionIndex / gridSize
     val col = portionIndex % gridSize
-    val portionSize = 1f / gridSize
 
-    Box(
-        modifier = modifier.clipToBounds()
-    ) {
+    Box(modifier = modifier.clipToBounds()) {
         Image(
             painter = painter,
             contentDescription = "Portion de l'image mystère",
@@ -204,20 +279,14 @@ fun PortionOfImageInCell(
             modifier = Modifier
                 .matchParentSize()
                 .graphicsLayer {
-                    translationX = -col * size.width * portionSize
-                    translationY = -row * size.height * portionSize
+                    // Décalage proportionnel en fonction de la grille
+                    translationX = -col * size.width
+                    translationY = -row * size.height
+
+                    // Agrandit l'image pour qu'on voie la portion
                     scaleX = gridSize.toFloat()
                     scaleY = gridSize.toFloat()
                 }
         )
     }
 }
-
-
-//private fun getCellIndicesSnakeOrder(boardSize: Int): List<Int> =
-//    List(boardSize * boardSize) { it }
-//        .chunked(boardSize)
-//        .mapIndexed { rowIndex, row ->
-//            if (rowIndex % 2 == 0) row else row.reversed()
-//        }
-//        .flatten()
