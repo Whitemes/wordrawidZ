@@ -4,6 +4,7 @@ import android.annotation.SuppressLint
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.Image
+import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.grid.GridCells
@@ -22,7 +23,6 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.clipToBounds
 import androidx.compose.ui.graphics.ImageBitmap
 import androidx.compose.ui.graphics.graphicsLayer
-import androidx.compose.ui.graphics.painter.Painter
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.imageResource
@@ -34,7 +34,6 @@ import androidx.compose.ui.unit.min
 import fr.uge.wordrawidx.model.GameState
 import fr.uge.wordrawidx.model.CaseHintType
 import fr.uge.wordrawidx.R
-
 
 @Composable
 fun GameBoard(
@@ -51,7 +50,7 @@ fun GameBoard(
             .aspectRatio(1f)
             .clip(RoundedCornerShape(cornerRadius))
     ) {
-        // Plateau de fond
+        // Plateau de fond (motif de plateau, toujours visible)
         Image(
             painter = painterResource(id = R.drawable.img_maze_background),
             contentDescription = "Fond du plateau de jeu",
@@ -126,36 +125,53 @@ fun BoardCell(
             val cellSize = min(constraints.maxWidth.dp, constraints.maxHeight.dp)
             val pawnImageSize = cellSize * 0.75f
 
-            // Affichage de l'indice si case révélée
+            // ✅ COUCHE 1 : Contenu de la case (derrière le pion)
             if (revealedCell != null) {
-                if (revealedCell.hintType == CaseHintType.SEMANTIC_WORD && revealedCell.hintContent.isNotBlank()) {
-                    Text(
-                        text = revealedCell.hintContent,
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = MaterialTheme.colorScheme.primary,
-                        modifier = Modifier.align(Alignment.Center)
-                    )
-                }
-                else if (revealedCell.hintType == CaseHintType.IMAGE && mysteryImageRes != null) {
-                    // 🔥 NOUVELLE VERSION AVEC DÉCOUPAGE PRÉCIS
-                    PortionOfImageInCellFromBitmap(
-                        imageRes = mysteryImageRes,
-                        portionIndex = cellIndex,
-                        gridSize = boardSize,
-                        modifier = Modifier
-                            .fillMaxSize()
-                            .align(Alignment.Center)
-                    )
-                }
-                else {
-                    Text(
-                        text = "⚠️",
-                        style = MaterialTheme.typography.labelLarge,
-                        color = MaterialTheme.colorScheme.error,
-                        modifier = Modifier.align(Alignment.Center)
-                    )
+                when (revealedCell.hintType) {
+                    CaseHintType.SEMANTIC_WORD -> {
+                        // Mot sémantique avec fond coloré
+                        Box(
+                            modifier = Modifier
+                                .fillMaxSize(0.9f)
+                                .align(Alignment.Center)
+                                .clip(RoundedCornerShape(8.dp))
+                                .background(MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.9f)),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Text(
+                                text = revealedCell.hintContent,
+                                style = MaterialTheme.typography.bodyMedium,
+                                color = MaterialTheme.colorScheme.onPrimaryContainer
+                            )
+                        }
+                    }
+                    CaseHintType.IMAGE -> {
+                        if (mysteryImageRes != null) {
+                            // ✅ Portion d'image en pleine taille (derrière le pion)
+                            PortionOfImageInCellFromBitmap(
+                                imageRes = mysteryImageRes,
+                                portionIndex = cellIndex,
+                                gridSize = boardSize,
+                                modifier = Modifier
+                                    .fillMaxSize() // Pleine taille
+                                    .align(Alignment.Center)
+                            )
+
+                            // Bordure subtile pour délimiter la portion
+                            Box(
+                                modifier = Modifier
+                                    .fillMaxSize()
+                                    .border(
+                                        width = 1.dp,
+                                        color = MaterialTheme.colorScheme.primary.copy(alpha = 0.3f),
+                                        shape = RoundedCornerShape(4.dp)
+                                    )
+                            )
+                        }
+                    }
                 }
             } else {
+                // Numéro de case si non révélée
                 Text(
                     text = visualNumber.toString(),
                     style = MaterialTheme.typography.labelMedium,
@@ -166,8 +182,26 @@ fun BoardCell(
                 )
             }
 
-            // Le pion toujours par-dessus tout
+            // ✅ COUCHE 2 : Pion TRANSPARENT au-dessus de tout
             if (isPlayerOnCell) {
+                // Ombre du pion pour maintenir la visibilité de position
+                Image(
+                    painter = painterResource(id = R.drawable.ic_player_pawn),
+                    contentDescription = null,
+                    contentScale = ContentScale.Fit,
+                    modifier = Modifier
+                        .size(pawnImageSize)
+                        .align(Alignment.Center)
+                        .graphicsLayer(
+                            scaleX = scaleFactor,
+                            scaleY = scaleFactor,
+                            alpha = 0.3f, // Ombre semi-transparente
+                            translationX = 2f,
+                            translationY = 2f
+                        )
+                )
+
+                // Pion principal transparent
                 Image(
                     painter = painterResource(id = R.drawable.ic_player_pawn),
                     contentDescription = "Pion du joueur",
@@ -177,7 +211,8 @@ fun BoardCell(
                         .align(Alignment.Center)
                         .graphicsLayer(
                             scaleX = scaleFactor,
-                            scaleY = scaleFactor
+                            scaleY = scaleFactor,
+                            alpha = 0.7f // ✅ PION TRANSPARENT (70% opacité)
                         )
                 )
             }
@@ -186,20 +221,19 @@ fun BoardCell(
 }
 
 /**
- * 🔥 NOUVELLE FONCTION - Version avec ressource d'image directement
+ * ✅ FONCTION OPTIMISÉE - Découpage précis d'image avec Canvas
  */
 @Composable
 fun PortionOfImageInCellFromBitmap(
+    modifier: Modifier = Modifier,
     imageRes: Int,
     portionIndex: Int,
-    gridSize: Int = 5,
-    modifier: Modifier = Modifier
+    gridSize: Int = 5
 ) {
     val context = LocalContext.current
     val imageBitmap = remember(imageRes) {
         ImageBitmap.imageResource(context.resources, imageRes)
     }
-
     PortionOfImageInCellBitmap(
         imageBitmap = imageBitmap,
         portionIndex = portionIndex,
@@ -209,84 +243,41 @@ fun PortionOfImageInCellFromBitmap(
 }
 
 /**
- * 🔥 NOUVELLE FONCTION - Version avec ImageBitmap
+ * ✅ FONCTION CORE - Découpage mathématique précis avec Canvas
  */
 @Composable
 fun PortionOfImageInCellBitmap(
+    modifier: Modifier = Modifier,
     imageBitmap: ImageBitmap,
     portionIndex: Int,
-    gridSize: Int = 5,
-    modifier: Modifier = Modifier
+    gridSize: Int = 5
 ) {
-    // Calcul des coordonnées de la cellule dans la grille
+    // Calcul des coordonnées de la portion dans la grille
     val row = portionIndex / gridSize
     val col = portionIndex % gridSize
 
     Canvas(modifier = modifier.fillMaxSize()) {
-        val canvasWidth = size.width
-        val canvasHeight = size.height
-
         // Dimensions de l'image source
         val imageWidth = imageBitmap.width.toFloat()
         val imageHeight = imageBitmap.height.toFloat()
 
-        // Calcul des dimensions d'une portion dans l'image source
+        // Taille d'une portion dans l'image source
         val portionWidth = imageWidth / gridSize
         val portionHeight = imageHeight / gridSize
 
-        // Rectangle source : la portion à extraire de l'image
+        // Rectangle source : quelle partie de l'image extraire
         val srcLeft = (col * portionWidth).toInt()
         val srcTop = (row * portionHeight).toInt()
         val srcRight = ((col + 1) * portionWidth).toInt().coerceAtMost(imageBitmap.width)
         val srcBottom = ((row + 1) * portionHeight).toInt().coerceAtMost(imageBitmap.height)
 
-        // Rectangle de destination : où dessiner sur le canvas (toute la surface)
-        val dstLeft = 0f
-        val dstTop = 0f
-        val dstRight = canvasWidth
-        val dstBottom = canvasHeight
-
-        // Dessin avec drawImage pour un découpage précis
+        // Dessiner la portion extraite sur tout le canvas de la cellule
         drawImage(
             image = imageBitmap,
             srcOffset = IntOffset(srcLeft, srcTop),
             srcSize = IntSize(srcRight - srcLeft, srcBottom - srcTop),
-            dstOffset = IntOffset(dstLeft.toInt(), dstTop.toInt()),
-            dstSize = IntSize((dstRight - dstLeft).toInt(), (dstBottom - dstTop).toInt())
-        )
-    }
-}
-
-/**
- * 📚 ANCIENNE FONCTION - Gardée pour référence/compatibilité
- * Peut être supprimée une fois que vous avez testé la nouvelle version
- */
-@Composable
-fun PortionOfImageInCell(
-    painter: Painter,
-    portionIndex: Int,
-    gridSize: Int = 5,
-    modifier: Modifier = Modifier
-) {
-    val row = portionIndex / gridSize
-    val col = portionIndex % gridSize
-
-    Box(modifier = modifier.clipToBounds()) {
-        Image(
-            painter = painter,
-            contentDescription = "Portion de l'image mystère",
-            contentScale = ContentScale.FillBounds,
-            modifier = Modifier
-                .matchParentSize()
-                .graphicsLayer {
-                    // Décalage proportionnel en fonction de la grille
-                    translationX = -col * size.width
-                    translationY = -row * size.height
-
-                    // Agrandit l'image pour qu'on voie la portion
-                    scaleX = gridSize.toFloat()
-                    scaleY = gridSize.toFloat()
-                }
+            dstOffset = IntOffset(0, 0),
+            dstSize = IntSize(size.width.toInt(), size.height.toInt())
         )
     }
 }

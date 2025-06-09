@@ -16,167 +16,12 @@ import androidx.compose.ui.unit.dp
 import fr.uge.wordrawidx.model.GameState
 import fr.uge.wordrawidx.controller.GameController
 import fr.uge.wordrawidx.controller.NavigationController
-import fr.uge.wordrawidx.model.CaseHintType
-import fr.uge.wordrawidx.model.RevealedCell
 import fr.uge.wordrawidx.navigation.Screen
 import fr.uge.wordrawidx.utils.MiniGameResultHolder
 import fr.uge.wordrawidx.view.components.DiceButton
 import fr.uge.wordrawidx.view.components.GameBoard
 import fr.uge.wordrawidx.view.components.GameStatusCard
-import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
-
-//
-//@Composable
-//fun GameScreen(
-//    navigationController: NavigationController,
-//    onNavigateToVictory: () -> Unit,
-//    modifier: Modifier = Modifier
-//) {
-//    Log.d("GameScreen", "Composing GameScreen...")
-//
-//    val gameState = rememberSaveable(saver = GameState.Saver) {
-//        Log.d("GameScreen", "Creating/Restoring GameState instance for GameScreen.")
-//        GameState(boardSize = 5)
-//    }
-//    val coroutineScope = rememberCoroutineScope()
-//    val gameController = remember(gameState, coroutineScope) {
-//        Log.d("GameScreen", "Creating/Recreating GameController for GameState id: ${System.identityHashCode(gameState)}")
-//        GameController(
-//            gameState = gameState,
-//            coroutineScope = coroutineScope
-//        )
-//    }
-//
-//    // Nouveau : restauration de la position du pion si besoin (pour corriger le bug)
-//    LaunchedEffect(MiniGameResultHolder.playerPositionBeforeMiniGame) {
-//        val savedPos = MiniGameResultHolder.playerPositionBeforeMiniGame
-//        if (savedPos != null && gameState.playerPosition != savedPos) {
-//            Log.i("GameScreen", "Restoring pawn position after mini-game: $savedPos")
-//            gameState.updatePlayerPositionValue(savedPos)
-//            MiniGameResultHolder.playerPositionBeforeMiniGame = null
-//        }
-//    }
-//
-//    // Gérer la demande de nouvelle partie
-//    LaunchedEffect(MiniGameResultHolder.newGameRequestedFromVictoryOrHome) {
-//        if (MiniGameResultHolder.newGameRequestedFromVictoryOrHome) {
-//            Log.i("GameScreen", "New game was explicitly requested. Resetting GameState.")
-//            gameController.startNewGame()
-//            MiniGameResultHolder.newGameRequestedFromVictoryOrHome = false
-//        }
-//    }
-//
-//    // Traiter le résultat du mini-jeu
-//    LaunchedEffect(MiniGameResultHolder.lastResultWasWin, MiniGameResultHolder.lastChallengedCell) {
-//        val cell = MiniGameResultHolder.lastChallengedCell
-//        val won = MiniGameResultHolder.lastResultWasWin
-//
-//        if (cell != null && won != null) {
-//            Log.i("GameScreen", "Processing MiniGameResult - Cell: $cell, Won: $won. CurrentPlayerPos in GameState: ${gameState.playerPosition}")
-//            if (cell == gameState.playerPosition) {
-//                gameController.processMiniGameResult(won, cell)
-//            } else {
-//                Log.e("GameScreen", "CRITICAL MISMATCH! MiniGameResult for cell $cell but GameState.playerPosition is ${gameState.playerPosition}. This indicates a state restoration issue or logic error.")
-//                gameController.processMiniGameResult(won, cell)
-//            }
-//            MiniGameResultHolder.lastChallengedCell = null
-//            MiniGameResultHolder.lastResultWasWin = null
-//        }
-//    }
-//
-//    val configuration = LocalConfiguration.current
-//    val isLandscape = configuration.orientation == Configuration.ORIENTATION_LANDSCAPE
-//    val backgroundBrush = Brush.verticalGradient(
-//        colors = listOf(MaterialTheme.colorScheme.primary.copy(alpha = 0.1f), MaterialTheme.colorScheme.background)
-//    )
-//
-//    Log.d("GameScreen", "UI Rendering. PlayerPos in GameState: ${gameState.playerPosition}")
-//
-//    Surface(modifier = modifier.fillMaxSize().background(backgroundBrush), color = Color.Transparent) {
-//        if (isLandscape) {
-//            Row(
-//                modifier = Modifier.fillMaxSize().padding(16.dp),
-//                verticalAlignment = Alignment.CenterVertically
-//            ) {
-//                Column(
-//                    modifier = Modifier.weight(1f).fillMaxHeight().padding(end = 8.dp),
-//                    horizontalAlignment = Alignment.CenterHorizontally,
-//                    verticalArrangement = Arrangement.SpaceAround
-//                ) {
-//                    GameBoard(gameState = gameState, modifier = Modifier.fillMaxWidth().weight(1f))
-//                    Spacer(modifier = Modifier.height(16.dp))
-//                    GameStatusCard(gameState = gameState, modifier = Modifier.fillMaxWidth())
-//                }
-//                Column(
-//                    modifier = Modifier.weight(0.6f).fillMaxHeight().padding(start = 8.dp),
-//                    horizontalAlignment = Alignment.CenterHorizontally,
-//                    verticalArrangement = Arrangement.Center
-//                ) {
-//                    Text("Drawid MVC", style = MaterialTheme.typography.headlineSmall, color = MaterialTheme.colorScheme.primary, modifier = Modifier.padding(bottom = 24.dp))
-//                    DiceButton(
-//                        diceValue = gameState.lastDiceRoll,
-//                        isRolling = gameState.isDiceRolling,
-//                        onRollClick = {
-//                            Log.d("GameScreen_Landscape", "DiceButton clicked. Player is at ${gameState.playerPosition}")
-//                            gameController.rollDiceAndMove(
-//                                onChallengeRequired = { landedPosition ->
-//                                    Log.d("GameScreen_Landscape", "Challenge for cell: $landedPosition. GS.playerPos: ${gameState.playerPosition}")
-//                                    // Correction : sauvegarder la position du pion AVANT de partir dans le mini-jeu
-//                                    MiniGameResultHolder.playerPositionBeforeMiniGame = gameState.playerPosition
-//                                    MiniGameResultHolder.lastChallengedCell = landedPosition
-//                                    MiniGameResultHolder.lastResultWasWin = null
-//                                    navigationController.navigateTo(Screen.AccelerometerMaze)
-//                                },
-//                                onGameWin = onNavigateToVictory
-//                            )
-//                        },
-//                        modifier = Modifier.fillMaxWidth(0.9f)
-//                    )
-//                }
-//            }
-//        } else { // Portrait
-//            Column(
-//                modifier = Modifier.fillMaxSize().padding(16.dp),
-//                horizontalAlignment = Alignment.CenterHorizontally,
-//                verticalArrangement = Arrangement.SpaceBetween
-//            ) {
-//                Text("Drawid MVC", style = MaterialTheme.typography.headlineMedium, color = MaterialTheme.colorScheme.primary, modifier = Modifier.padding(top = 16.dp))
-//                Spacer(Modifier.weight(0.1f))
-//                GameBoard(gameState = gameState, modifier = Modifier.fillMaxWidth().weight(1f).padding(horizontal = 8.dp))
-//                Spacer(Modifier.weight(0.1f))
-//                GameStatusCard(gameState = gameState, modifier = Modifier.fillMaxWidth(0.9f))
-//                Spacer(Modifier.height(16.dp))
-//                DiceButton(
-//                    diceValue = gameState.lastDiceRoll,
-//                    isRolling = gameState.isDiceRolling,
-//                    onRollClick = {
-//                        Log.d("GameScreen_Portrait", "DiceButton clicked. Player is at ${gameState.playerPosition}")
-//                        gameController.rollDiceAndMove(
-//                            onChallengeRequired = { landedPosition ->
-//                                Log.d("GameScreen_Portrait", "Challenge for cell: $landedPosition. GS.playerPos: ${gameState.playerPosition}")
-//                                // Correction : sauvegarder la position du pion AVANT de partir dans le mini-jeu
-//                                MiniGameResultHolder.playerPositionBeforeMiniGame = gameState.playerPosition
-//                                MiniGameResultHolder.lastChallengedCell = landedPosition
-//                                MiniGameResultHolder.lastResultWasWin = null
-//                                navigationController.navigateTo(Screen.AccelerometerMaze)
-//                            },
-//                            onGameWin = onNavigateToVictory
-//                        )
-//                    },
-//                    modifier = Modifier.fillMaxWidth(0.8f).padding(bottom = 16.dp)
-//                )
-//            }
-//        }
-//    }
-//}
-
-
-
-
-
-
-
 
 @Composable
 fun GameScreen(
@@ -184,60 +29,63 @@ fun GameScreen(
     onNavigateToVictory: () -> Unit,
     modifier: Modifier = Modifier
 ) {
-    Log.d("GameScreen", "Composing GameScreen...")
+    Log.d("GameScreen", "Recomposition GameScreen")
 
-    val gameState = rememberSaveable(saver = GameState.Saver) {
-        Log.d("GameScreen", "Creating/Restoring GameState instance for GameScreen.")
+    // ✅ CRITIQUE : State avec clé stable pour éviter recréation
+    val gameState = rememberSaveable(
+        saver = GameState.Saver,
+        key = "game_state_main" // Clé stable
+    ) {
+        Log.i("GameScreen", "Création NOUVEAU GameState")
         GameState(boardSize = 5)
     }
-    val coroutineScope = rememberCoroutineScope()
-    val gameController = remember(gameState, coroutineScope) {
-        Log.d("GameScreen", "Creating/Recreating GameController for GameState id: ${System.identityHashCode(gameState)}")
-        GameController(
-            gameState = gameState,
-            coroutineScope = coroutineScope
-        )
-    }
 
-    //CI DESSOUS DEBUG A SUPPRIMER
-    LaunchedEffect(Unit) {
-        gameController.revealAllCellsForDebug()
+    val coroutineScope = rememberCoroutineScope()
+    val gameController = remember(gameState) {
+        Log.d("GameScreen", "Création GameController")
+        GameController(gameState = gameState, coroutineScope = coroutineScope)
     }
 
     var guessText by remember { mutableStateOf("") }
     var guessResult by remember { mutableStateOf<Boolean?>(null) }
-    var currentChallengeCell by remember { mutableStateOf<Int?>(null) }
-    var flipTrigger by remember { mutableStateOf(false) }
 
-    // Restauration de la position du pion après mini-jeu
+    // ✅ SUPPRIMÉ : Section qui causait la téléportation du pion
+    /*
     LaunchedEffect(MiniGameResultHolder.playerPositionBeforeMiniGame) {
         val savedPos = MiniGameResultHolder.playerPositionBeforeMiniGame
         if (savedPos != null && gameState.playerPosition != savedPos) {
-            gameState.updatePlayerPositionValue(savedPos)
+            gameState.updatePlayerPositionValue(savedPos)  // ← CAUSAIT LE TÉLÉPORTATION
             MiniGameResultHolder.playerPositionBeforeMiniGame = null
         }
     }
+    */
 
-    // Traiter le résultat du mini-jeu après retour
-    LaunchedEffect(MiniGameResultHolder.lastResultWasWin, MiniGameResultHolder.lastChallengedCell) {
+    // ✅ CRITIQUE : Traitement résultat avec clé pour éviter re-exécution
+    LaunchedEffect(
+        key1 = MiniGameResultHolder.lastChallengedCell,
+        key2 = MiniGameResultHolder.lastResultWasWin
+    ) {
         val cell = MiniGameResultHolder.lastChallengedCell
         val won = MiniGameResultHolder.lastResultWasWin
+
         if (cell != null && won != null) {
-            //A REMETTRE
-//            if (won) {
-//                gameController.revealHintForCell(cell)
-//                flipTrigger = !flipTrigger
-//            }
-            // Sinon, la case reste cachée
-            currentChallengeCell = null
+            Log.i("GameScreen", "Traitement résultat: cell=$cell, won=$won, motActuel='${gameState.mysteryObject?.word}'")
+
+            if (won) {
+                gameState.revealCell(cell)
+                Log.i("GameScreen", "Case révélée - Mot toujours: '${gameState.mysteryObject?.word}'")
+            }
+
+            // Nettoyage immédiat
             MiniGameResultHolder.lastChallengedCell = null
             MiniGameResultHolder.lastResultWasWin = null
         }
     }
 
-    // Gérer la demande de nouvelle partie
+    // Gestion nouvelle partie
     LaunchedEffect(MiniGameResultHolder.newGameRequestedFromVictoryOrHome) {
         if (MiniGameResultHolder.newGameRequestedFromVictoryOrHome) {
+            Log.i("GameScreen", "Nouvelle partie demandée")
             gameController.startNewGame()
             MiniGameResultHolder.newGameRequestedFromVictoryOrHome = false
         }
@@ -264,84 +112,79 @@ fun GameScreen(
 
             Spacer(Modifier.height(16.dp))
 
-//            DiceButton(
-//                diceValue = gameState.lastDiceRoll,
-//                isRolling = gameState.isDiceRolling,
-//                onRollClick = {
-//                    gameController.rollDiceAndMove(
-//                        onChallengeRequired = { cellIdx ->
-//                            if (!gameState.isCellRevealed(cellIdx)) {
-//                                // Stocke la position et la cellule, puis pars dans le mini-jeu
-//                                MiniGameResultHolder.playerPositionBeforeMiniGame = gameState.playerPosition
-//                                MiniGameResultHolder.lastChallengedCell = cellIdx
-//                                MiniGameResultHolder.lastResultWasWin = null
-//                                navigationController.navigateTo(Screen.AccelerometerMaze)
-//                            }
-//                        },
-//                        onGameWin = onNavigateToVictory
-//                    )
-//                },
-//                modifier = Modifier.fillMaxWidth(0.8f)
-//            )
             DiceButton(
                 diceValue = gameState.lastDiceRoll,
                 isRolling = gameState.isDiceRolling,
                 onRollClick = {
+                    Log.d("GameScreen", "Lancer dé - Mot: '${gameState.mysteryObject?.word}', Position: ${gameState.playerPosition}")
                     gameController.rollDiceAndMove(
                         onChallengeRequired = { cellIdx ->
                             if (!gameState.isCellRevealed(cellIdx)) {
+                                // ✅ CORRECTION : Sauvegarder la position AVANT le mini-jeu
+                                Log.d("GameScreen", "Sauvegarde position avant mini-jeu: ${gameState.playerPosition}")
                                 MiniGameResultHolder.playerPositionBeforeMiniGame = gameState.playerPosition
                                 MiniGameResultHolder.lastChallengedCell = cellIdx
                                 MiniGameResultHolder.lastResultWasWin = null
 
-                                // LOGIQUE DE CHOIX DU JEU :
+                                // Choix du mini-jeu (alternez selon vos préférences)
                                 if (cellIdx % 2 == 0) {
-//                                    navigationController.navigateTo(Screen.AccelerometerMaze)
                                     navigationController.navigateTo(Screen.ShakeGame)
                                 } else {
-                                    navigationController.navigateTo(Screen.ShakeGame)
+                                    navigationController.navigateTo(Screen.AccelerometerMaze)
                                 }
+                            } else {
+                                Log.d("GameScreen", "Case $cellIdx déjà révélée - Pas de challenge")
                             }
                         },
-                        onGameWin = onNavigateToVictory
+                        onGameWin = {
+                            Log.d("GameScreen", "Partie gagnée !")
+                            onNavigateToVictory()
+                        }
                     )
                 },
                 modifier = Modifier.fillMaxWidth(0.8f)
             )
 
-
             Spacer(Modifier.height(16.dp))
-
             GameStatusCard(gameState = gameState, modifier = Modifier.fillMaxWidth())
 
+            // ✅ DEBUG : Affichage pour vérifier stabilité
             Text("🔍 Mot mystère : ${gameState.mysteryObject?.word ?: "?"}")
+            Text("Cases révélées : ${gameState.revealedCells.size}/${gameState.totalCells}")
 
             Spacer(Modifier.height(16.dp))
 
-            // Proposer un mot pour gagner
+            // Interface de devinette
             if (!gameState.isGameWon) {
                 OutlinedTextField(
                     value = guessText,
                     onValueChange = { guessText = it },
                     label = { Text("Deviner le mot mystère") }
                 )
+                Spacer(Modifier.height(8.dp))
                 Button(
                     onClick = {
                         val res = gameController.tryToGuessWord(guessText)
                         guessResult = res
-                        if (res) onNavigateToVictory()
+                        if (res) {
+                            Log.d("GameScreen", "Mot mystère deviné correctement !")
+                            onNavigateToVictory()
+                        }
                     },
                     enabled = guessText.isNotBlank()
-                ) { Text("Proposer") }
-                if (guessResult == false) {
-                    Text("Mauvaise réponse…", color = Color.Red)
-                } else if (guessResult == true) {
-                    Text("Bravo, c’est gagné !", color = Color.Green)
+                ) {
+                    Text("Proposer")
+                }
+
+                guessResult?.let { result ->
+                    Spacer(Modifier.height(8.dp))
+                    Text(
+                        text = if (result) "Bravo, c'est gagné !" else "Mauvaise réponse…",
+                        color = if (result) Color.Green else Color.Red,
+                        style = MaterialTheme.typography.bodyMedium
+                    )
                 }
             }
         }
     }
 }
-
-
-
