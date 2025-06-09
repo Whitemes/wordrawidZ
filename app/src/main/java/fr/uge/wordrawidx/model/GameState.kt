@@ -1,14 +1,11 @@
 package fr.uge.wordrawidx.model
 
-import android.os.Bundle
 import android.util.Log
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateListOf
 import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.saveable.Saver
 import androidx.compose.runtime.setValue
 import androidx.compose.runtime.snapshots.SnapshotStateList
-import fr.uge.wordrawidx.R
 import java.util.concurrent.atomic.AtomicBoolean
 
 const val BOARD_COLS_MAIN = 5
@@ -22,43 +19,17 @@ data class RevealedCell(
     val hintContent: String
 )
 
+/**
+ * Modèle d'objet mystère moderne (compatible Repository)
+ * Remplace l'ancien MysteryObject et MysteryBank deprecated
+ */
 data class MysteryObject(
     val word: String,
     val closeWords: List<String>,
-    val imageRes: Int
+    val imageRes: Int,
+    val imageName: String = "",
+    val source: String = "repository" // Origine des données
 )
-
-object MysteryBank {
-    val objects = listOf(
-        MysteryObject(
-            word = "souris",
-            closeWords = listOf(
-                "clavier", "pointeur", "USB", "ordinateur", "molette", "écran", "clic", "tapis", "filaire", "Bluetooth",
-                "trackpad", "mulot", "roulette", "rongeur", "rat", "cordon", "dongle", "infra-rouge", "sans fil", "batterie", "mac",
-                "windows", "scroll", "gamer", "LED", "logiciel"
-            ),
-            imageRes = R.drawable.img_souris
-        ),
-        MysteryObject(
-            word = "guitare",
-            closeWords = listOf(
-                "corde", "instrument", "musique", "électrique", "acoustique", "amplificateur", "mélodie", "basse", "accord", "piano",
-                "rythme", "solo", "classique", "rock", "jazz", "folk", "manche", "table", "pique", "note",
-                "batterie", "scène", "concert", "chanson", "main"
-            ),
-            imageRes = R.drawable.img_guitare
-        ),
-        MysteryObject(
-            word = "bouteille",
-            closeWords = listOf(
-                "eau", "verre", "bouchon", "plastique", "boisson", "liquide", "vin", "conteneur", "canette", "verrerie",
-                "gourde", "cristal", "soda", "capsule", "lait", "jus", "bulle", "pétillant", "remplir", "ouvrir",
-                "laver", "capsuleuse", "usage", "étiquette", "recyclage"
-            ),
-            imageRes = R.drawable.img_bouteille
-        )
-    )
-}
 
 data class GameCellHint(
     val type: CaseHintType,
@@ -66,7 +37,13 @@ data class GameCellHint(
     val imagePortionIndex: Int? = null // numéro portion si IMAGE
 )
 
-class GameState(val boardSize: Int = BOARD_COLS_MAIN, restoreMode: Boolean = false) {
+/**
+ * État de jeu moderne géré par Repository + ViewModel
+ * Plus de dépendance aux objets hardcodés deprecated
+ */
+class GameState(val boardSize: Int = BOARD_COLS_MAIN) {
+
+    // ✅ États du jeu
     var playerPosition by mutableStateOf(0)
         internal set
     var lastDiceRoll by mutableStateOf(0)
@@ -77,49 +54,46 @@ class GameState(val boardSize: Int = BOARD_COLS_MAIN, restoreMode: Boolean = fal
         internal set
     val totalCells = boardSize * boardSize
 
+    // ✅ État du plateau
     val revealedCells: SnapshotStateList<RevealedCell> = mutableStateListOf()
-
-    var mysteryObject by mutableStateOf<MysteryObject?>(null)
-        private set // ✅ CRITIQUE : Empêcher modification externe
-
     val cellHints: MutableList<GameCellHint> = mutableStateListOf()
+
+    // ✅ Objet mystère (fourni par Repository via ViewModel)
+    var mysteryObject by mutableStateOf<MysteryObject?>(null)
+        private set
+
+    // ✅ État de fin de partie
     var isGameWon by mutableStateOf(false)
         internal set
 
-    // ✅ CRITIQUE : Flag d'initialisation thread-safe
+    // ✅ Flag d'initialisation thread-safe
     private var isInitialized = AtomicBoolean(false)
 
     init {
-        Log.d("GameState", "GameState INIT - restoreMode: $restoreMode")
-        if (!restoreMode) {
-            setupMysteryAndHintsOnce()
-        } else {
-            isInitialized.set(true)
-        }
+        Log.d("GameState", "GameState moderne initialisé - En attente Repository")
     }
 
-    // ✅ CRITIQUE : Setup thread-safe qui ne peut être appelé qu'une fois
-    private fun setupMysteryAndHintsOnce() {
+    // ✅ MÉTHODE PRINCIPALE : Définit l'objet mystère depuis Repository
+    fun setMysteryObject(mystery: MysteryObject) {
         if (isInitialized.getAndSet(true)) {
-            Log.w("GameState", "setupMysteryAndHints IGNORÉ - déjà initialisé")
+            Log.w("GameState", "setMysteryObject IGNORÉ - déjà initialisé")
             return
         }
 
-        Log.i("GameState", "setupMysteryAndHints DÉMARRAGE - Premier setup")
+        Log.i("GameState", "setMysteryObject - Mot: '${mystery.word}', Source: ${mystery.source}")
 
-        // Tirage aléatoire UNE SEULE FOIS
-        mysteryObject = MysteryBank.objects.random()
+        mysteryObject = mystery
+        setupGameBoard(mystery)
+    }
+
+    /**
+     * Configure le plateau de jeu avec l'objet mystère
+     */
+    private fun setupGameBoard(mystery: MysteryObject) {
         cellHints.clear()
 
-        val obj = mysteryObject ?: run {
-            Log.e("GameState", "Erreur: mysteryObject est null")
-            return
-        }
-
-        Log.i("GameState", "Mot mystère choisi: '${obj.word}' (ne changera plus)")
-
         val totalCells = boardSize * boardSize
-        val imageCount = (totalCells * 0.6f).toInt()
+        val imageCount = (totalCells * 0.6f).toInt() // 60% images, 40% mots
         val wordCount = totalCells - imageCount
 
         val allCellIndices = (0 until totalCells).shuffled()
@@ -128,7 +102,7 @@ class GameState(val boardSize: Int = BOARD_COLS_MAIN, restoreMode: Boolean = fal
 
         val tempHints = MutableList<GameCellHint?>(totalCells) { null }
 
-        // Distribution fixe des indices
+        // Distribution des portions d'image
         for ((portionIdx, cellIdx) in imageCellIndices.withIndex()) {
             tempHints[cellIdx] = GameCellHint(
                 type = CaseHintType.IMAGE,
@@ -136,24 +110,33 @@ class GameState(val boardSize: Int = BOARD_COLS_MAIN, restoreMode: Boolean = fal
             )
         }
 
+        // Distribution des mots sémantiques
         for ((i, cellIdx) in wordCellIndices.withIndex()) {
-            val word = obj.closeWords.getOrNull(i) ?: "[mot]"
+            val word = mystery.closeWords.getOrNull(i) ?: "[indice]"
             tempHints[cellIdx] = GameCellHint(
                 type = CaseHintType.SEMANTIC_WORD,
                 value = word
             )
         }
 
+        // Remplir toutes les cases
         for (i in 0 until totalCells) {
-            cellHints.add(tempHints[i] ?: GameCellHint(type = CaseHintType.SEMANTIC_WORD, value = "[mot]"))
+            cellHints.add(
+                tempHints[i] ?: GameCellHint(
+                    type = CaseHintType.SEMANTIC_WORD,
+                    value = "[indice]"
+                )
+            )
         }
 
-        Log.i("GameState", "Setup terminé: ${cellHints.size} indices créés")
+        Log.i("GameState", "Plateau configuré: ${cellHints.size} cases, ${imageCount} images, ${wordCount} mots pour '${mystery.word}'")
     }
 
-    // ✅ MÉTHODES PUBLIQUES
+    // ✅ MÉTHODES DE CONTRÔLE DU JEU
+
     internal fun updateDiceValue(value: Int) {
         lastDiceRoll = value
+        Log.d("GameState", "Dé lancé: $value")
     }
 
     internal fun updatePlayerPositionValue(newPosition: Int) {
@@ -161,11 +144,17 @@ class GameState(val boardSize: Int = BOARD_COLS_MAIN, restoreMode: Boolean = fal
         playerPosition = newPosition
     }
 
-    fun isCellRevealed(cellIndex: Int) = revealedCells.any { it.cellIndex == cellIndex }
-    fun getHintForCell(cellIndex: Int): RevealedCell? = revealedCells.find { it.cellIndex == cellIndex }
-    fun getPlannedHintForCell(cellIndex: Int): GameCellHint? = cellHints.getOrNull(cellIndex)
+    // ✅ MÉTHODES D'ÉTAT DU PLATEAU
 
-    // ✅ CRITIQUE : revealCell ne doit JAMAIS modifier le setup
+    fun isCellRevealed(cellIndex: Int): Boolean =
+        revealedCells.any { it.cellIndex == cellIndex }
+
+    fun getHintForCell(cellIndex: Int): RevealedCell? =
+        revealedCells.find { it.cellIndex == cellIndex }
+
+    fun getPlannedHintForCell(cellIndex: Int): GameCellHint? =
+        cellHints.getOrNull(cellIndex)
+
     fun revealCell(cellIndex: Int) {
         if (isCellRevealed(cellIndex)) {
             Log.d("GameState", "Case $cellIndex déjà révélée - ignorée")
@@ -176,8 +165,9 @@ class GameState(val boardSize: Int = BOARD_COLS_MAIN, restoreMode: Boolean = fal
         if (hint != null) {
             val content = when (hint.type) {
                 CaseHintType.IMAGE -> hint.imagePortionIndex?.toString() ?: "0"
-                CaseHintType.SEMANTIC_WORD -> hint.value ?: "[mot]"
+                CaseHintType.SEMANTIC_WORD -> hint.value ?: "[indice]"
             }
+
             revealedCells.add(RevealedCell(cellIndex, hint.type, content))
             Log.i("GameState", "Case $cellIndex révélée: ${hint.type} = '$content'")
         } else {
@@ -185,115 +175,94 @@ class GameState(val boardSize: Int = BOARD_COLS_MAIN, restoreMode: Boolean = fal
         }
     }
 
+    // ✅ MÉTHODE DE VICTOIRE
+
     fun tryGuessMysteryWord(proposed: String): Boolean {
         val win = proposed.trim().equals(mysteryObject?.word?.trim(), ignoreCase = true)
-        if (win) isGameWon = true
+        if (win) {
+            isGameWon = true
+            Log.i("GameState", "Victoire ! Mot '$proposed' deviné correctement")
+        } else {
+            Log.d("GameState", "Échec devinette: '$proposed' != '${mysteryObject?.word}'")
+        }
         return win
     }
 
-    // ✅ CRITIQUE : Reset complet pour nouvelle partie SEULEMENT
-    internal fun resetStateForNewGame() {
-        Log.i("GameState", "RESET COMPLET pour nouvelle partie")
+    // ✅ RESET POUR NOUVELLE PARTIE
 
-        // Reset de tous les états
+    internal fun resetStateForNewGame() {
+        Log.i("GameState", "RESET pour nouvelle partie")
+
+        // Reset états de jeu
         playerPosition = 0
         lastDiceRoll = 0
         isDiceRolling = false
         isPlayerMoving = false
-        revealedCells.clear()
         isGameWon = false
 
-        // CRITIQUE : Reset complet du contenu
-        mysteryObject = null
+        // Reset plateau
+        revealedCells.clear()
         cellHints.clear()
+
+        // Reset objet mystère
+        mysteryObject = null
         isInitialized.set(false)
 
-        // Nouveau setup complet
-        setupMysteryAndHintsOnce()
-        Log.i("GameState", "Reset terminé - Nouveau mot: '${mysteryObject?.word}'")
+        Log.i("GameState", "Reset terminé - En attente nouveau mystère depuis Repository")
     }
 
-    companion object {
-        // Clés de sauvegarde
-        private const val KEY_BOARD_SIZE = "boardSize"
-        private const val KEY_PLAYER_POSITION = "playerPosition"
-        private const val KEY_LAST_DICE_ROLL = "lastDiceRoll"
-        private const val KEY_IS_GAME_WON = "isGameWon"
-        private const val KEY_MYSTERY_OBJ_IDX = "mysteryObjectIdx"
-        private const val KEY_REVEALED_CELLS = "revealedCells"
-        private const val KEY_CELL_HINTS = "cellHints"
-        private const val KEY_HINT_TYPE = "hintType"
-        private const val KEY_HINT_VALUE = "hintValue"
-        private const val KEY_HINT_IMAGE_IDX = "hintImageIdx"
+    // ✅ MÉTHODES UTILITAIRES
 
-        val Saver: Saver<GameState, Bundle> = Saver(
-            save = { gameState ->
-                Log.d("GameState.Saver", "SAUVEGARDE état - Mot: '${gameState.mysteryObject?.word}'")
-                Bundle().apply {
-                    putInt(KEY_BOARD_SIZE, gameState.boardSize)
-                    putInt(KEY_PLAYER_POSITION, gameState.playerPosition)
-                    putInt(KEY_LAST_DICE_ROLL, gameState.lastDiceRoll)
-                    putBoolean(KEY_IS_GAME_WON, gameState.isGameWon)
-                    putInt(KEY_MYSTERY_OBJ_IDX, MysteryBank.objects.indexOf(gameState.mysteryObject))
-
-                    // Sauvegarder cellHints pour préserver la distribution
-                    putParcelableArray(KEY_CELL_HINTS, gameState.cellHints.map {
-                        Bundle().apply {
-                            putString(KEY_HINT_TYPE, it.type.name)
-                            putString(KEY_HINT_VALUE, it.value)
-                            if (it.imagePortionIndex != null) putInt(KEY_HINT_IMAGE_IDX, it.imagePortionIndex)
-                        }
-                    }.toTypedArray())
-
-                    // Sauvegarder cases révélées
-                    putParcelableArray(KEY_REVEALED_CELLS, gameState.revealedCells.map {
-                        Bundle().apply {
-                            putInt("cellIndex", it.cellIndex)
-                            putString("hintType", it.hintType.name)
-                            putString("hintContent", it.hintContent)
-                        }
-                    }.toTypedArray())
-                }
-            },
-            restore = { bundle ->
-                val boardSize = bundle.getInt(KEY_BOARD_SIZE)
-                val mysteryIdx = bundle.getInt(KEY_MYSTERY_OBJ_IDX, 0)
-                val obj = MysteryBank.objects.getOrNull(mysteryIdx)
-
-                Log.d("GameState.Saver", "RESTAURATION état - Mot: '${obj?.word}'")
-
-                GameState(boardSize, restoreMode = true).apply {
-                    this.playerPosition = bundle.getInt(KEY_PLAYER_POSITION)
-                    this.lastDiceRoll = bundle.getInt(KEY_LAST_DICE_ROLL)
-                    this.isGameWon = bundle.getBoolean(KEY_IS_GAME_WON, false)
-                    this.mysteryObject = obj
-
-                    // Restaurer la distribution des indices
-                    cellHints.clear()
-                    val hintsArr = bundle.getParcelableArray(KEY_CELL_HINTS)
-                    if (hintsArr != null) {
-                        for (el in hintsArr) {
-                            val b = el as Bundle
-                            val type = CaseHintType.valueOf(b.getString(KEY_HINT_TYPE)!!)
-                            val value = b.getString(KEY_HINT_VALUE)
-                            val imageIdx = if (b.containsKey(KEY_HINT_IMAGE_IDX)) b.getInt(KEY_HINT_IMAGE_IDX) else null
-                            cellHints.add(GameCellHint(type, value, imageIdx))
-                        }
-                    }
-
-                    // Restaurer cases révélées
-                    val array = bundle.getParcelableArray(KEY_REVEALED_CELLS)
-                    if (array != null) {
-                        for (el in array) {
-                            val b = el as Bundle
-                            val idx = b.getInt("cellIndex")
-                            val type = CaseHintType.valueOf(b.getString("hintType")!!)
-                            val content = b.getString("hintContent")!!
-                            revealedCells.add(RevealedCell(idx, type, content))
-                        }
-                    }
-                }
-            }
+    /**
+     * Statistiques de l'état actuel
+     */
+    fun getGameStats(): GameStats {
+        return GameStats(
+            totalCells = totalCells,
+            revealedCells = revealedCells.size,
+            currentWord = mysteryObject?.word ?: "Aucun",
+            hintsAvailable = mysteryObject?.closeWords?.size ?: 0,
+            playerPosition = playerPosition,
+            isGameWon = isGameWon,
+            source = mysteryObject?.source ?: "Aucune"
         )
     }
+
+    /**
+     * Validation de l'état du jeu
+     */
+    fun isGameStateValid(): Boolean {
+        return mysteryObject != null &&
+                cellHints.isNotEmpty() &&
+                cellHints.size == totalCells
+    }
+
+    /**
+     * Debug : Affiche l'état complet
+     */
+    fun debugState(): String {
+        val stats = getGameStats()
+        return """
+            GameState Debug:
+            - Mot mystère: ${stats.currentWord} (${stats.source})
+            - Position: ${stats.playerPosition}/${stats.totalCells}
+            - Cases révélées: ${stats.revealedCells}/${stats.totalCells}
+            - Indices disponibles: ${stats.hintsAvailable}
+            - Jeu gagné: ${stats.isGameWon}
+            - État valide: ${isGameStateValid()}
+        """.trimIndent()
+    }
 }
+
+/**
+ * Statistiques de l'état de jeu
+ */
+data class GameStats(
+    val totalCells: Int,
+    val revealedCells: Int,
+    val currentWord: String,
+    val hintsAvailable: Int,
+    val playerPosition: Int,
+    val isGameWon: Boolean,
+    val source: String
+)

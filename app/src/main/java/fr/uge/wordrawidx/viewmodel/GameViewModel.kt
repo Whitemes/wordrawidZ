@@ -1,36 +1,42 @@
+// viewmodel/GameViewModel.kt (VERSION CORRIGÉE - SANS RESTOREMODE)
 package fr.uge.wordrawidx.viewmodel
 
+import android.content.Context
 import android.util.Log
 import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
+import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
+import fr.uge.wordrawidx.data.repository.MysteryRepository
 import fr.uge.wordrawidx.model.GameState
-import fr.uge.wordrawidx.model.MysteryBank
+import fr.uge.wordrawidx.model.MysteryObject
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 
+/**
+ * GameViewModel moderne avec intégration Repository
+ * Compatible avec la nouvelle version de GameState sans restoreMode
+ */
 class GameViewModel(
-    private val savedStateHandle: SavedStateHandle
+    private val savedStateHandle: SavedStateHandle,
+    private val mysteryRepository: MysteryRepository
 ) : ViewModel() {
 
     companion object {
-        private const val KEY_PLAYER_POSITION = "player_position"
-        private const val KEY_LAST_DICE_ROLL = "last_dice_roll"
-        private const val KEY_IS_GAME_WON = "is_game_won"
-        private const val KEY_MYSTERY_WORD = "mystery_word"
-        private const val KEY_REVEALED_CELLS_COUNT = "revealed_cells_count"
-        private const val KEY_REVEALED_CELLS_DATA = "revealed_cells_data"
         private const val KEY_PLAYER_POSITION_BEFORE_MINI_GAME = "player_pos_before_mini"
         private const val KEY_LAST_CHALLENGED_CELL = "last_challenged_cell"
         private const val KEY_PENDING_MINI_GAME_RESULT = "pending_mini_result"
+        private const val KEY_CURRENT_MYSTERY_WORD = "current_mystery_word"
     }
 
-    // ✅ État principal - Création unique avec persistance manuelle
-    private val _gameState: GameState
+    // ✅ État principal - Création moderne sans restoreMode
+    private val _gameState = GameState(boardSize = 5).also {
+        Log.i("GameViewModel", "GameState moderne créé")
+    }
 
     val gameState: GameState get() = _gameState
 
-    // ✅ Position sauvegardée AVANT mini-jeu (thread-safe)
+    // ✅ Propriétés persistantes mini-jeux (inchangées)
     var playerPositionBeforeMiniGame: Int?
         get() = savedStateHandle.get<Int>(KEY_PLAYER_POSITION_BEFORE_MINI_GAME)
         set(value) {
@@ -38,7 +44,6 @@ class GameViewModel(
             Log.d("GameViewModel", "Position avant mini-jeu sauvegardée: $value")
         }
 
-    // ✅ Cellule challengée (persistante)
     var lastChallengedCell: Int?
         get() = savedStateHandle.get<Int>(KEY_LAST_CHALLENGED_CELL)
         set(value) {
@@ -46,7 +51,6 @@ class GameViewModel(
             Log.d("GameViewModel", "Cellule challengée sauvegardée: $value")
         }
 
-    // ✅ Résultat du mini-jeu en attente
     var pendingMiniGameResult: Boolean?
         get() = savedStateHandle.get<Boolean>(KEY_PENDING_MINI_GAME_RESULT)
         set(value) {
@@ -55,16 +59,91 @@ class GameViewModel(
         }
 
     init {
-        // ✅ Initialisation du GameState avec restauration manuelle
-        _gameState = restoreGameStateFromSavedState() ?: createNewGameState()
-        Log.d("GameViewModel", "ViewModel initialisé - Mot: '${gameState.mysteryObject?.word}', Position: ${gameState.playerPosition}")
+        Log.d("GameViewModel", "ViewModel initialisé avec Repository moderne")
+        initializeGame()
     }
 
-    // ✅ MÉTHODES PUBLIQUES
+    // ✅ NOUVELLES MÉTHODES - Gestion Repository
 
     /**
-     * Lance le dé et déplace le pion
+     * Initialise une nouvelle partie avec objet aléatoire du repository
      */
+    private fun initializeGame() {
+        viewModelScope.launch {
+            try {
+                // Vérifier si une partie est en cours
+                val savedWord = savedStateHandle.get<String>(KEY_CURRENT_MYSTERY_WORD)
+
+                if (!savedWord.isNullOrBlank()) {
+                    // Restaurer partie existante
+                    Log.i("GameViewModel", "Restauration partie existante - Mot: '$savedWord'")
+                    restoreGameFromSavedWord(savedWord)
+                } else {
+                    // Nouvelle partie
+                    Log.i("GameViewModel", "Initialisation nouvelle partie")
+                    startNewGameWithRepository()
+                }
+            } catch (e: Exception) {
+                Log.e("GameViewModel", "Erreur initialisation: ${e.message}")
+                // Fallback vers GameState moderne sans objets externes
+                Log.w("GameViewModel", "GameState reste en attente de setMysteryObject()")
+            }
+        }
+    }
+
+    /**
+     * Démarre une nouvelle partie avec un objet du repository
+     */
+    private suspend fun startNewGameWithRepository() {
+        val repositoryMystery = mysteryRepository.getRandomMysteryObject()
+
+        if (repositoryMystery != null) {
+            // Convertir vers format GameState moderne
+            val gameStateMystery = MysteryObject(
+                word = repositoryMystery.word,
+                closeWords = repositoryMystery.closeWords,
+                imageRes = repositoryMystery.imageResourceId ?: fr.uge.wordrawidx.R.drawable.img_souris,
+                imageName = repositoryMystery.imageName,
+                source = "repository"
+            )
+
+            // ✅ Utiliser la nouvelle méthode setMysteryObject()
+            gameState.setMysteryObject(gameStateMystery)
+
+            // Sauvegarder le mot actuel
+            savedStateHandle[KEY_CURRENT_MYSTERY_WORD] = repositoryMystery.word
+
+            Log.i("GameViewModel", "Nouvelle partie initialisée - Mot: '${repositoryMystery.word}', Source: repository, Indices: ${repositoryMystery.closeWords.size}")
+        } else {
+            Log.e("GameViewModel", "Repository n'a retourné aucun objet mystère")
+        }
+    }
+
+    /**
+     * Restaure une partie depuis un mot sauvegardé
+     */
+    private suspend fun restoreGameFromSavedWord(savedWord: String) {
+        val repositoryMystery = mysteryRepository.findMysteryObjectByWord(savedWord)
+
+        if (repositoryMystery != null) {
+            val gameStateMystery = MysteryObject(
+                word = repositoryMystery.word,
+                closeWords = repositoryMystery.closeWords,
+                imageRes = repositoryMystery.imageResourceId ?: fr.uge.wordrawidx.R.drawable.img_souris,
+                imageName = repositoryMystery.imageName,
+                source = "repository_restored"
+            )
+
+            gameState.setMysteryObject(gameStateMystery)
+            Log.i("GameViewModel", "Partie restaurée - Mot: '${repositoryMystery.word}'")
+        } else {
+            Log.w("GameViewModel", "Mot sauvegardé '$savedWord' non trouvé - Nouvelle partie")
+            startNewGameWithRepository()
+        }
+    }
+
+    // ✅ MÉTHODES PUBLIQUES (inchangées)
+
     fun rollDiceAndMove(
         onChallengeRequired: (landedPosition: Int) -> Unit,
         onGameWin: () -> Unit
@@ -75,7 +154,6 @@ class GameViewModel(
         }
 
         gameState.isDiceRolling = true
-        saveGameState()
 
         viewModelScope.launch {
             delay(800)
@@ -85,24 +163,18 @@ class GameViewModel(
 
             gameState.isDiceRolling = false
             gameState.isPlayerMoving = true
-            saveGameState()
 
-            // Mouvement avec wrap-around
             val newPosition = (gameState.playerPosition + diceValue) % gameState.totalCells
             movePlayerGradually(newPosition, onChallengeRequired, onGameWin)
         }
     }
 
-    /**
-     * Prépare un mini-jeu pour une cellule
-     */
     fun prepareMiniGameChallenge(cellIndex: Int): Boolean {
         if (gameState.isCellRevealed(cellIndex)) {
             Log.d("GameViewModel", "Cellule $cellIndex déjà révélée - Pas de challenge")
             return false
         }
 
-        // ✅ CRITIQUE : Sauvegarder la position ACTUELLE avant le mini-jeu
         playerPositionBeforeMiniGame = gameState.playerPosition
         lastChallengedCell = cellIndex
         pendingMiniGameResult = null
@@ -111,9 +183,6 @@ class GameViewModel(
         return true
     }
 
-    /**
-     * Traite le résultat d'un mini-jeu
-     */
     fun processMiniGameResult(won: Boolean) {
         val challengedCell = lastChallengedCell
         val savedPosition = playerPositionBeforeMiniGame
@@ -125,13 +194,11 @@ class GameViewModel(
 
         Log.i("GameViewModel", "Traitement résultat mini-jeu - Cellule: $challengedCell, Gagné: $won, Position à restaurer: $savedPosition")
 
-        // ✅ RESTAURER LA POSITION (critique pour éviter la téléportation)
         if (savedPosition != null && savedPosition != gameState.playerPosition) {
             Log.i("GameViewModel", "Restauration position: ${gameState.playerPosition} → $savedPosition")
             gameState.updatePlayerPositionValue(savedPosition)
         }
 
-        // ✅ RÉVÉLER LA CELLULE si victoire
         if (won) {
             gameState.revealCell(challengedCell)
             Log.i("GameViewModel", "Cellule $challengedCell révélée suite à victoire")
@@ -139,50 +206,63 @@ class GameViewModel(
             Log.d("GameViewModel", "Mini-jeu perdu - Cellule $challengedCell non révélée")
         }
 
-        // ✅ NETTOYAGE
         lastChallengedCell = null
         playerPositionBeforeMiniGame = null
         pendingMiniGameResult = null
-
-        saveGameState()
     }
 
-    /**
-     * Teste une proposition de mot mystère
-     */
     fun tryToGuessWord(proposed: String): Boolean {
         val result = gameState.tryGuessMysteryWord(proposed)
         if (result) {
             Log.i("GameViewModel", "Mot mystère deviné correctement: '$proposed'")
         }
-        saveGameState()
         return result
     }
 
     /**
-     * Démarre une nouvelle partie
+     * Démarre une nouvelle partie (avec repository)
      */
     fun startNewGame() {
-        Log.i("GameViewModel", "Démarrage nouvelle partie")
-        gameState.resetStateForNewGame()
+        Log.i("GameViewModel", "Démarrage nouvelle partie avec repository")
 
-        // Nettoyage complet des états de mini-jeu
+        // Nettoyage
         playerPositionBeforeMiniGame = null
         lastChallengedCell = null
         pendingMiniGameResult = null
+        savedStateHandle.remove<String>(KEY_CURRENT_MYSTERY_WORD)
 
-        saveGameState()
-        Log.i("GameViewModel", "Nouvelle partie initialisée - Nouveau mot: '${gameState.mysteryObject?.word}'")
+        // ✅ Reset du GameState moderne
+        gameState.resetStateForNewGame()
+
+        // Réinitialiser avec nouveau mystère
+        viewModelScope.launch {
+            startNewGameWithRepository()
+        }
     }
 
-    /**
-     * Force la révélation de toutes les cellules (debug)
-     */
     fun revealAllCellsForDebug() {
         for (i in 0 until gameState.totalCells) {
             gameState.revealCell(i)
         }
-        saveGameState()
+    }
+
+    /**
+     * Statistiques de la base de données (pour debug)
+     */
+    fun getDatabaseStats() {
+        viewModelScope.launch {
+            try {
+                val stats = mysteryRepository.getDatabaseStats()
+                val source = mysteryRepository.getDataSource()
+                Log.i("GameViewModel", "Stats BDD: ${stats.totalObjects} objets, ${stats.totalWords} mots, ${stats.objectsWithImages} avec images")
+                Log.i("GameViewModel", "Source données: $source")
+
+                // Debug GameState
+                Log.d("GameViewModel", gameState.debugState())
+            } catch (e: Exception) {
+                Log.e("GameViewModel", "Erreur stats BDD: ${e.message}")
+            }
+        }
     }
 
     // ✅ MÉTHODES PRIVÉES
@@ -198,14 +278,11 @@ class GameViewModel(
         while (currentPos != targetPosition) {
             currentPos = (currentPos + 1) % total
             gameState.updatePlayerPositionValue(currentPos)
-            saveGameState()
             delay(300)
         }
 
         gameState.isPlayerMoving = false
-        saveGameState()
 
-        // Vérifier si un défi est nécessaire
         if (!gameState.isCellRevealed(gameState.playerPosition)) {
             Log.d("GameViewModel", "Case ${gameState.playerPosition} non révélée → Défi requis")
             onChallengeRequired(gameState.playerPosition)
@@ -214,83 +291,25 @@ class GameViewModel(
         }
     }
 
-    private fun saveGameState() {
-        // ✅ Sauvegarde manuelle des propriétés critiques dans SavedStateHandle
-        try {
-            savedStateHandle[KEY_PLAYER_POSITION] = gameState.playerPosition
-            savedStateHandle[KEY_LAST_DICE_ROLL] = gameState.lastDiceRoll
-            savedStateHandle[KEY_IS_GAME_WON] = gameState.isGameWon
-            savedStateHandle[KEY_MYSTERY_WORD] = gameState.mysteryObject?.word ?: ""
-            savedStateHandle[KEY_REVEALED_CELLS_COUNT] = gameState.revealedCells.size
-
-            // Sauvegarder les cellules révélées (format simple)
-            val revealedCellsData = gameState.revealedCells.map { cell ->
-                "${cell.cellIndex},${cell.hintType.name},${cell.hintContent}"
-            }
-            savedStateHandle[KEY_REVEALED_CELLS_DATA] = revealedCellsData.toTypedArray()
-
-            Log.d("GameViewModel", "État sauvegardé - Position: ${gameState.playerPosition}, Mot: '${gameState.mysteryObject?.word}'")
-        } catch (e: Exception) {
-            Log.e("GameViewModel", "Erreur sauvegarde état: ${e.message}")
-        }
-    }
-
-    private fun restoreGameStateFromSavedState(): GameState? {
-        return try {
-            val savedPosition = savedStateHandle.get<Int>(KEY_PLAYER_POSITION) ?: return null
-            val savedWord = savedStateHandle.get<String>(KEY_MYSTERY_WORD) ?: return null
-
-            if (savedWord.isBlank()) return null
-
-            Log.i("GameViewModel", "Restauration état - Position: $savedPosition, Mot: '$savedWord'")
-
-            // Créer GameState avec restauration
-            val restoredState = GameState(boardSize = 5, restoreMode = true)
-
-            // Restaurer les propriétés de base
-            restoredState.updatePlayerPositionValue(savedPosition)
-            restoredState.updateDiceValue(savedStateHandle.get<Int>(KEY_LAST_DICE_ROLL) ?: 0)
-
-            // Restaurer le mot mystère (recherche dans MysteryBank)
-            val mysteryObject = MysteryBank.objects.find { it.word == savedWord }
-            if (mysteryObject != null) {
-                // ⚠️ Accès réflexion pour restaurer mysteryObject (hack temporaire)
-                val field = restoredState::class.java.getDeclaredField("mysteryObject")
-                field.isAccessible = true
-                field.set(restoredState, mysteryObject)
-
-                // Restaurer les cellules révélées
-                val revealedCellsData = savedStateHandle.get<Array<String>>(KEY_REVEALED_CELLS_DATA)
-                revealedCellsData?.forEach { cellData ->
-                    val parts = cellData.split(",")
-                    if (parts.size >= 3) {
-                        val cellIndex = parts[0].toIntOrNull()
-                        if (cellIndex != null) {
-                            restoredState.revealCell(cellIndex)
-                        }
-                    }
-                }
-
-                Log.i("GameViewModel", "État restauré avec succès - ${restoredState.revealedCells.size} cellules révélées")
-                return restoredState
-            }
-
-            null
-        } catch (e: Exception) {
-            Log.w("GameViewModel", "Impossible de restaurer l'état: ${e.message}")
-            null
-        }
-    }
-
-    private fun createNewGameState(): GameState {
-        Log.i("GameViewModel", "Création nouveau GameState")
-        return GameState(boardSize = 5, restoreMode = false).also {
-            Log.i("GameViewModel", "Nouveau GameState créé - Mot: '${it.mysteryObject?.word}'")
-        }
-    }
-
     override fun onCleared() {
         super.onCleared()
         Log.d("GameViewModel", "ViewModel détruit")
+    }
+}
+
+/**
+ * Factory pour injection du Repository
+ * Compatible avec GameState moderne
+ */
+class GameViewModelFactory(
+    private val context: Context
+) : ViewModelProvider.Factory {
+    @Suppress("UNCHECKED_CAST")
+    override fun <T : ViewModel> create(modelClass: Class<T>): T {
+        if (modelClass.isAssignableFrom(GameViewModel::class.java)) {
+            val repository = MysteryRepository.getInstance(context)
+            return GameViewModel(SavedStateHandle(), repository) as T
+        }
+        throw IllegalArgumentException("Unknown ViewModel class")
     }
 }
