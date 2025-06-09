@@ -6,10 +6,23 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 
+/**
+ * OPTIONNEL : GameController simplifié car la logique métier
+ * est maintenant dans GameViewModel.
+ *
+ * Ce controller peut être utilisé pour des opérations
+ * qui ne nécessitent pas de persistance d'état.
+ */
 class GameController(
     private val gameState: GameState,
     private val coroutineScope: CoroutineScope
 ) {
+
+    /**
+     * Lance le dé et déplace le pion (version simplifiée)
+     * ⚠️ DEPRECATED : Utilisez GameViewModel.rollDiceAndMove() à la place
+     */
+    @Deprecated("Utilisez GameViewModel.rollDiceAndMove() pour une gestion d'état persistante")
     fun rollDiceAndMove(
         onChallengeRequired: (landedPosition: Int) -> Unit,
         onGameWin: () -> Unit
@@ -21,11 +34,10 @@ class GameController(
             delay(800)
             val diceValue = (1..6).random()
             gameState.updateDiceValue(diceValue)
-            Log.d("GameController_Main", "Dice rolled: $diceValue. Current pos: ${gameState.playerPosition}")
+            Log.d("GameController_Legacy", "Dice rolled: $diceValue. Current pos: ${gameState.playerPosition}")
             gameState.isDiceRolling = false
             gameState.isPlayerMoving = true
 
-            // --- Wrap-around logique (modulo pour boucler le plateau)
             val newPosition = (gameState.playerPosition + diceValue) % gameState.totalCells
             movePlayerGradually(newPosition, onChallengeRequired, onGameWin)
         }
@@ -46,35 +58,36 @@ class GameController(
         }
         gameState.isPlayerMoving = false
 
-        // ✅ LOGIQUE CORRIGÉE : défi seulement si la case n'est PAS révélée
         if (!gameState.isCellRevealed(gameState.playerPosition)) {
-            Log.d("GameController", "Case ${gameState.playerPosition} non révélée -> Défi requis")
+            Log.d("GameController_Legacy", "Case ${gameState.playerPosition} non révélée → Défi requis")
             onChallengeRequired(gameState.playerPosition)
         } else {
-            Log.d("GameController", "Case ${gameState.playerPosition} déjà révélée -> Aucun défi, tour suivant")
-            // La case est déjà révélée : rien ne se passe, le joueur peut relancer le dé
+            Log.d("GameController_Legacy", "Case ${gameState.playerPosition} déjà révélée → Tour suivant")
         }
     }
 
-
-    // Appelé après succès au mini-jeu pour révéler la case
-//    fun revealHintForCell(cellIndex: Int) {
-//        gameState.revealCell(cellIndex)
-//    }
-
-    //CI DESSOUS DEBUG A SUPPRIMER
+    /**
+     * Révèle toutes les cases (debug uniquement)
+     */
     fun revealAllCellsForDebug() {
         for (i in 0 until gameState.totalCells) {
             gameState.revealCell(i)
         }
     }
 
-
-
-    // Deviner le mot mystère
+    /**
+     * Test de devinette (version simplifiée)
+     * ⚠️ DEPRECATED : Utilisez GameViewModel.tryToGuessWord() à la place
+     */
+    @Deprecated("Utilisez GameViewModel.tryToGuessWord() pour une gestion d'état persistante")
     fun tryToGuessWord(proposed: String): Boolean = gameState.tryGuessMysteryWord(proposed)
 
+    /**
+     * Nouvelle partie (version simplifiée)
+     * ⚠️ DEPRECATED : Utilisez GameViewModel.startNewGame() à la place
+     */
+    @Deprecated("Utilisez GameViewModel.startNewGame() pour une gestion d'état persistante")
     fun startNewGame() {
-        gameState.resetStateForNewGame() // Correction : sans paramètre
+        gameState.resetStateForNewGame()
     }
 }

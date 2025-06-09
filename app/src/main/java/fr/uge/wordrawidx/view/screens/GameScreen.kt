@@ -6,22 +6,21 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
-import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.unit.dp
-import fr.uge.wordrawidx.model.GameState
-import fr.uge.wordrawidx.controller.GameController
+import androidx.lifecycle.viewmodel.compose.viewModel
 import fr.uge.wordrawidx.controller.NavigationController
 import fr.uge.wordrawidx.navigation.Screen
 import fr.uge.wordrawidx.utils.MiniGameResultHolder
 import fr.uge.wordrawidx.view.components.DiceButton
 import fr.uge.wordrawidx.view.components.GameBoard
 import fr.uge.wordrawidx.view.components.GameStatusCard
-import kotlinx.coroutines.launch
+import fr.uge.wordrawidx.viewmodel.GameViewModel
+import nl.dionsegijn.konfetti.compose.BuildConfig
 
 @Composable
 fun GameScreen(
@@ -31,113 +30,115 @@ fun GameScreen(
 ) {
     Log.d("GameScreen", "Recomposition GameScreen")
 
-    // ✅ CRITIQUE : State avec clé stable pour éviter recréation
-    val gameState = rememberSaveable(
-        saver = GameState.Saver,
-        key = "game_state_main" // Clé stable
-    ) {
-        Log.i("GameScreen", "Création NOUVEAU GameState")
-        GameState(boardSize = 5)
-    }
+    // ✅ MIGRATION : Utilisation du ViewModel au lieu de rememberSaveable
+    val gameViewModel: GameViewModel = viewModel()
+    val gameState = gameViewModel.gameState
 
-    val coroutineScope = rememberCoroutineScope()
-    val gameController = remember(gameState) {
-        Log.d("GameScreen", "Création GameController")
-        GameController(gameState = gameState, coroutineScope = coroutineScope)
-    }
-
+    // États locaux pour l'interface de devinette
     var guessText by remember { mutableStateOf("") }
     var guessResult by remember { mutableStateOf<Boolean?>(null) }
 
-    // ✅ SUPPRIMÉ : Section qui causait la téléportation du pion
-    /*
-    LaunchedEffect(MiniGameResultHolder.playerPositionBeforeMiniGame) {
-        val savedPos = MiniGameResultHolder.playerPositionBeforeMiniGame
-        if (savedPos != null && gameState.playerPosition != savedPos) {
-            gameState.updatePlayerPositionValue(savedPos)  // ← CAUSAIT LE TÉLÉPORTATION
-            MiniGameResultHolder.playerPositionBeforeMiniGame = null
-        }
-    }
-    */
-
-    // ✅ CRITIQUE : Traitement résultat avec clé pour éviter re-exécution
-    LaunchedEffect(
-        key1 = MiniGameResultHolder.lastChallengedCell,
-        key2 = MiniGameResultHolder.lastResultWasWin
-    ) {
-        val cell = MiniGameResultHolder.lastChallengedCell
+    // ✅ GESTION RÉSULTAT MINI-JEU - Version simplifiée avec ViewModel
+    LaunchedEffect(MiniGameResultHolder.lastResultWasWin) {
         val won = MiniGameResultHolder.lastResultWasWin
 
-        if (cell != null && won != null) {
-            Log.i("GameScreen", "Traitement résultat: cell=$cell, won=$won, motActuel='${gameState.mysteryObject?.word}'")
+        if (won != null) {
+            Log.i("GameScreen", "Traitement résultat mini-jeu via ViewModel: won=$won")
 
-            if (won) {
-                gameState.revealCell(cell)
-                Log.i("GameScreen", "Case révélée - Mot toujours: '${gameState.mysteryObject?.word}'")
-            }
+            // ✨ Le ViewModel gère automatiquement la cellule challengée et la position
+            gameViewModel.processMiniGameResult(won)
 
-            // Nettoyage immédiat
-            MiniGameResultHolder.lastChallengedCell = null
+            // Nettoyage MiniGameResultHolder
             MiniGameResultHolder.lastResultWasWin = null
+
+            Log.i("GameScreen", "Résultat traité - État actuel: Mot='${gameState.mysteryObject?.word}', Position=${gameState.playerPosition}, Cases révélées=${gameState.revealedCells.size}")
         }
     }
 
-    // Gestion nouvelle partie
+    // ✅ GESTION NOUVELLE PARTIE
     LaunchedEffect(MiniGameResultHolder.newGameRequestedFromVictoryOrHome) {
         if (MiniGameResultHolder.newGameRequestedFromVictoryOrHome) {
-            Log.i("GameScreen", "Nouvelle partie demandée")
-            gameController.startNewGame()
+            Log.i("GameScreen", "Nouvelle partie demandée via ViewModel")
+            gameViewModel.startNewGame()
             MiniGameResultHolder.newGameRequestedFromVictoryOrHome = false
+
+            // Reset des états locaux de l'écran
+            guessText = ""
+            guessResult = null
+
+            Log.i("GameScreen", "Nouvelle partie initialisée - Nouveau mot: '${gameState.mysteryObject?.word}'")
         }
     }
 
+    // Configuration d'écran et style
     val configuration = LocalConfiguration.current
     val isLandscape = configuration.orientation == Configuration.ORIENTATION_LANDSCAPE
     val backgroundBrush = Brush.verticalGradient(
-        colors = listOf(MaterialTheme.colorScheme.primary.copy(alpha = 0.1f), MaterialTheme.colorScheme.background)
+        colors = listOf(
+            MaterialTheme.colorScheme.primary.copy(alpha = 0.1f),
+            MaterialTheme.colorScheme.background
+        )
     )
 
-    Surface(modifier = modifier.fillMaxSize().background(backgroundBrush), color = Color.Transparent) {
+    Surface(
+        modifier = modifier.fillMaxSize().background(backgroundBrush),
+        color = Color.Transparent
+    ) {
         Column(
-            modifier = Modifier.fillMaxSize().padding(16.dp),
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(16.dp),
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
-            Text("Wordrawid", style = MaterialTheme.typography.headlineMedium)
-            Spacer(Modifier.height(8.dp))
+            // Titre du jeu
+            Text(
+                text = "Wordrawid",
+                style = MaterialTheme.typography.headlineMedium,
+                color = MaterialTheme.colorScheme.onBackground
+            )
+            Spacer(modifier = Modifier.height(8.dp))
 
+            // Plateau de jeu principal
             GameBoard(
                 gameState = gameState,
-                modifier = Modifier.fillMaxWidth().weight(1f)
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .weight(1f)
             )
 
-            Spacer(Modifier.height(16.dp))
+            Spacer(modifier = Modifier.height(16.dp))
 
+            // ✅ BOUTON DÉ - Utilisation du ViewModel
             DiceButton(
                 diceValue = gameState.lastDiceRoll,
                 isRolling = gameState.isDiceRolling,
                 onRollClick = {
-                    Log.d("GameScreen", "Lancer dé - Mot: '${gameState.mysteryObject?.word}', Position: ${gameState.playerPosition}")
-                    gameController.rollDiceAndMove(
-                        onChallengeRequired = { cellIdx ->
-                            if (!gameState.isCellRevealed(cellIdx)) {
-                                // ✅ CORRECTION : Sauvegarder la position AVANT le mini-jeu
-                                Log.d("GameScreen", "Sauvegarde position avant mini-jeu: ${gameState.playerPosition}")
-                                MiniGameResultHolder.playerPositionBeforeMiniGame = gameState.playerPosition
-                                MiniGameResultHolder.lastChallengedCell = cellIdx
-                                MiniGameResultHolder.lastResultWasWin = null
+                    Log.d("GameScreen", "Lancer dé - ViewModel - Mot: '${gameState.mysteryObject?.word}', Position: ${gameState.playerPosition}")
 
-                                // Choix du mini-jeu (alternez selon vos préférences)
-                                if (cellIdx % 2 == 0) {
-                                    navigationController.navigateTo(Screen.ShakeGame)
-                                } else {
-                                    navigationController.navigateTo(Screen.AccelerometerMaze)
-                                }
+                    gameViewModel.rollDiceAndMove(
+                        onChallengeRequired = { cellIdx ->
+                            // ✅ PRÉPARATION MINI-JEU via ViewModel
+                            if (gameViewModel.prepareMiniGameChallenge(cellIdx)) {
+                                Log.i("GameScreen", "Mini-jeu préparé pour cellule $cellIdx - Position sauvegardée: ${gameState.playerPosition}")
+
+                                // ✅ TEMPORAIRE : Seulement ShakeGame activé
+                                Log.d("GameScreen", "Navigation vers ShakeGame (labyrinthe désactivé)")
+                                navigationController.navigateTo(Screen.ShakeGame)
+
+                                // ❌ DÉSACTIVÉ TEMPORAIREMENT : AccelerometerMaze
+                                // if (cellIdx % 2 == 0) {
+                                //     Log.d("GameScreen", "Navigation vers ShakeGame (cellule paire)")
+                                //     navigationController.navigateTo(Screen.ShakeGame)
+                                // } else {
+                                //     Log.d("GameScreen", "Navigation vers AccelerometerMaze (cellule impaire)")
+                                //     navigationController.navigateTo(Screen.AccelerometerMaze)
+                                // }
                             } else {
-                                Log.d("GameScreen", "Case $cellIdx déjà révélée - Pas de challenge")
+                                Log.d("GameScreen", "Case $cellIdx déjà révélée - Pas de challenge nécessaire")
                             }
                         },
                         onGameWin = {
-                            Log.d("GameScreen", "Partie gagnée !")
+                            Log.d("GameScreen", "Partie gagnée via ViewModel !")
                             onNavigateToVictory()
                         }
                     )
@@ -145,44 +146,136 @@ fun GameScreen(
                 modifier = Modifier.fillMaxWidth(0.8f)
             )
 
-            Spacer(Modifier.height(16.dp))
-            GameStatusCard(gameState = gameState, modifier = Modifier.fillMaxWidth())
+            Spacer(modifier = Modifier.height(16.dp))
 
-            // ✅ DEBUG : Affichage pour vérifier stabilité
-            Text("🔍 Mot mystère : ${gameState.mysteryObject?.word ?: "?"}")
-            Text("Cases révélées : ${gameState.revealedCells.size}/${gameState.totalCells}")
+            // Carte de statut du jeu
+            GameStatusCard(
+                gameState = gameState,
+                modifier = Modifier.fillMaxWidth()
+            )
 
-            Spacer(Modifier.height(16.dp))
+            Spacer(modifier = Modifier.height(16.dp))
 
-            // Interface de devinette
+            // ✅ DEBUG CARD - Affichage de l'état ViewModel (removable en production)
+            if (BuildConfig.DEBUG) {
+                Card(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(vertical = 4.dp),
+                    colors = CardDefaults.cardColors(
+                        containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.7f)
+                    ),
+                    elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
+                ) {
+                    Column(
+                        modifier = Modifier.padding(12.dp)
+                    ) {
+                        Text(
+                            text = "🔍 Debug ViewModel",
+                            style = MaterialTheme.typography.labelLarge,
+                            color = MaterialTheme.colorScheme.primary
+                        )
+                        Text(
+                            text = "Mot mystère : ${gameState.mysteryObject?.word ?: "Non défini"}",
+                            style = MaterialTheme.typography.bodySmall
+                        )
+                        Text(
+                            text = "Cases révélées : ${gameState.revealedCells.size}/${gameState.totalCells}",
+                            style = MaterialTheme.typography.bodySmall
+                        )
+                        Text(
+                            text = "Position sauvée : ${gameViewModel.playerPositionBeforeMiniGame ?: "Aucune"}",
+                            style = MaterialTheme.typography.bodySmall
+                        )
+                        Text(
+                            text = "Cellule en attente : ${gameViewModel.lastChallengedCell ?: "Aucune"}",
+                            style = MaterialTheme.typography.bodySmall
+                        )
+                        Text(
+                            text = "État jeu gagné : ${gameState.isGameWon}",
+                            style = MaterialTheme.typography.bodySmall
+                        )
+                    }
+                }
+            }
+
+            Spacer(modifier = Modifier.height(16.dp))
+
+            // ✅ INTERFACE DE DEVINETTE - Utilisation du ViewModel
             if (!gameState.isGameWon) {
                 OutlinedTextField(
                     value = guessText,
                     onValueChange = { guessText = it },
-                    label = { Text("Deviner le mot mystère") }
+                    label = { Text("Deviner le mot mystère") },
+                    modifier = Modifier.fillMaxWidth(),
+                    singleLine = true
                 )
-                Spacer(Modifier.height(8.dp))
+
+                Spacer(modifier = Modifier.height(8.dp))
+
                 Button(
                     onClick = {
-                        val res = gameController.tryToGuessWord(guessText)
-                        guessResult = res
-                        if (res) {
-                            Log.d("GameScreen", "Mot mystère deviné correctement !")
+                        val result = gameViewModel.tryToGuessWord(guessText)
+                        guessResult = result
+
+                        Log.d("GameScreen", "Tentative de devinette: '$guessText' -> $result")
+
+                        if (result) {
+                            Log.d("GameScreen", "Mot mystère deviné correctement via ViewModel !")
                             onNavigateToVictory()
                         }
                     },
-                    enabled = guessText.isNotBlank()
+                    enabled = guessText.isNotBlank(),
+                    modifier = Modifier.fillMaxWidth()
                 ) {
                     Text("Proposer")
                 }
 
+                // Affichage du résultat de la devinette
                 guessResult?.let { result ->
-                    Spacer(Modifier.height(8.dp))
+                    Spacer(modifier = Modifier.height(8.dp))
                     Text(
-                        text = if (result) "Bravo, c'est gagné !" else "Mauvaise réponse…",
+                        text = if (result) "🎉 Bravo, c'est gagné !" else "❌ Mauvaise réponse, essayez encore…",
                         color = if (result) Color.Green else Color.Red,
                         style = MaterialTheme.typography.bodyMedium
                     )
+                }
+            } else {
+                // Message de victoire (ne devrait pas apparaître car navigation vers VictoryScreen)
+                Text(
+                    text = "🏆 Partie terminée ! Félicitations !",
+                    style = MaterialTheme.typography.titleMedium,
+                    color = Color.Green
+                )
+            }
+
+            // ✅ BOUTONS DEBUG (seulement en mode développement)
+            if (BuildConfig.DEBUG) {
+                Spacer(modifier = Modifier.height(8.dp))
+
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceEvenly
+                ) {
+                    TextButton(
+                        onClick = {
+                            gameViewModel.revealAllCellsForDebug()
+                            Log.d("GameScreen", "DEBUG: Toutes les cases révélées")
+                        }
+                    ) {
+                        Text("🔧 Révéler Tout")
+                    }
+
+                    TextButton(
+                        onClick = {
+                            gameViewModel.startNewGame()
+                            guessText = ""
+                            guessResult = null
+                            Log.d("GameScreen", "DEBUG: Nouvelle partie forcée")
+                        }
+                    ) {
+                        Text("🔄 Nouveau Jeu")
+                    }
                 }
             }
         }
