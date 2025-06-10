@@ -2,6 +2,7 @@
 package fr.uge.wordrawidx.view.components
 
 import android.graphics.BitmapFactory
+import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
@@ -20,7 +21,8 @@ import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.imageResource
-import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.unit.IntOffset
+import androidx.compose.ui.unit.IntSize
 import androidx.compose.ui.unit.dp
 import fr.uge.wordrawidx.data.local.AssetLoader
 import kotlinx.coroutines.Dispatchers
@@ -32,10 +34,10 @@ import kotlinx.coroutines.withContext
  */
 @Composable
 fun AssetImageLoader(
+    modifier: Modifier = Modifier,
     imageName: String,
     imageResourceId: Int?,
     contentDescription: String? = null,
-    modifier: Modifier = Modifier,
     contentScale: ContentScale = ContentScale.Fit
 ) {
     val context = LocalContext.current
@@ -123,7 +125,7 @@ fun AssetImageLoader(
 }
 
 /**
- * Version simplifiée pour les portions d'image (utilisée dans GameBoard)
+ * ✅ NOUVEAU : Découpage de portions pour images assets
  */
 @Composable
 fun AssetImagePortion(
@@ -133,13 +135,126 @@ fun AssetImagePortion(
     gridSize: Int = 5,
     modifier: Modifier = Modifier
 ) {
-    // Pour l'instant, utiliser l'image complète
-    // TODO: Implémenter le découpage de portions pour les images assets
-    AssetImageLoader(
-        imageName = imageName,
-        imageResourceId = imageResourceId,
-        contentDescription = "Portion $portionIndex de $imageName",
+    val context = LocalContext.current
+    var imageBitmap by remember(imageName) { mutableStateOf<ImageBitmap?>(null) }
+    var isLoading by remember(imageName) { mutableStateOf(true) }
+    var hasError by remember(imageName) { mutableStateOf(false) }
+
+    // Chargement de l'image depuis assets
+    LaunchedEffect(imageName, imageResourceId) {
+        isLoading = true
+        hasError = false
+
+        try {
+            when {
+                // Cas 1: Image dans drawable/ (ID fourni)
+                imageResourceId != null && imageResourceId != AssetLoader.ASSETS_IMAGE_PLACEHOLDER_ID -> {
+                    imageBitmap = ImageBitmap.imageResource(context.resources, imageResourceId)
+                    isLoading = false
+                }
+
+                // Cas 2: Image dans assets/images/ (chargement dynamique)
+                else -> {
+                    val assetLoader = AssetLoader(context)
+                    val imageBytes = withContext(Dispatchers.IO) {
+                        assetLoader.loadImageFromAssets(imageName)
+                    }
+
+                    if (imageBytes != null) {
+                        val bitmap = BitmapFactory.decodeByteArray(imageBytes, 0, imageBytes.size)
+                        imageBitmap = bitmap.asImageBitmap()
+                    } else {
+                        hasError = true
+                    }
+                    isLoading = false
+                }
+            }
+        } catch (e: Exception) {
+            hasError = true
+            isLoading = false
+        }
+    }
+
+    // Affichage avec découpage de portion
+    Box(
         modifier = modifier,
-        contentScale = ContentScale.Crop
-    )
+        contentAlignment = Alignment.Center
+    ) {
+        when {
+            isLoading -> {
+                CircularProgressIndicator(
+                    modifier = Modifier.size(16.dp),
+                    color = MaterialTheme.colorScheme.primary
+                )
+            }
+
+            hasError -> {
+                // Fallback : Placeholder
+                Box(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .background(
+                            MaterialTheme.colorScheme.surfaceVariant,
+                            RoundedCornerShape(4.dp)
+                        ),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Text(
+                        text = "🖼️",
+                        style = MaterialTheme.typography.bodySmall
+                    )
+                }
+            }
+
+            imageBitmap != null -> {
+                // ✅ DÉCOUPAGE DE PORTION comme dans l'ancien code
+                AssetImagePortionCanvas(
+                    imageBitmap = imageBitmap!!,
+                    portionIndex = portionIndex,
+                    gridSize = gridSize,
+                    modifier = Modifier.fillMaxSize()
+                )
+            }
+        }
+    }
+}
+
+/**
+ * ✅ DÉCOUPAGE CANVAS pour images assets (identique à PortionOfImageInCellBitmap)
+ */
+@Composable
+fun AssetImagePortionCanvas(
+    modifier: Modifier = Modifier,
+    imageBitmap: ImageBitmap,
+    portionIndex: Int,
+    gridSize: Int = 5
+) {
+    // Calcul des coordonnées de la portion dans la grille
+    val row = portionIndex / gridSize
+    val col = portionIndex % gridSize
+
+    Canvas(modifier = modifier.fillMaxSize()) {
+        // Dimensions de l'image source
+        val imageWidth = imageBitmap.width.toFloat()
+        val imageHeight = imageBitmap.height.toFloat()
+
+        // Taille d'une portion dans l'image source
+        val portionWidth = imageWidth / gridSize
+        val portionHeight = imageHeight / gridSize
+
+        // Rectangle source : quelle partie de l'image extraire
+        val srcLeft = (col * portionWidth).toInt()
+        val srcTop = (row * portionHeight).toInt()
+        val srcRight = ((col + 1) * portionWidth).toInt().coerceAtMost(imageBitmap.width)
+        val srcBottom = ((row + 1) * portionHeight).toInt().coerceAtMost(imageBitmap.height)
+
+        // Dessiner la portion extraite sur tout le canvas de la cellule
+        drawImage(
+            image = imageBitmap,
+            srcOffset = IntOffset(srcLeft, srcTop),
+            srcSize = IntSize(srcRight - srcLeft, srcBottom - srcTop),
+            dstOffset = IntOffset(0, 0),
+            dstSize = IntSize(size.width.toInt(), size.height.toInt())
+        )
+    }
 }
