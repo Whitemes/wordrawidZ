@@ -8,7 +8,6 @@ import fr.uge.wordrawidx.R
 
 /**
  * Version simplifiée pour transition sans backend JSON
- * À utiliser si vous voulez tester l'architecture repository sans le JSON backend
  */
 class SimpleMysteryLoader(private val context: Context) {
 

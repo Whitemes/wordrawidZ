@@ -9,13 +9,17 @@ import kotlinx.serialization.json.Json
 import java.io.IOException
 
 /**
- * Utilitaire pour charger les assets depuis le backend
+ * AssetLoader corrigé pour chercher les images dans assets/images/
+ * Compatible avec la structure générée par votre script Python
  */
 class AssetLoader(private val context: Context) {
 
     companion object {
-        private const val OFFLINE_WORD_PACK_FILE = "offline_word_pack.json"  // ← Nom exact du backend
+        private const val OFFLINE_WORD_PACK_FILE = "offline_word_pack.json"
+        private const val IMAGES_ASSETS_FOLDER = "images"  // ← NOUVEAU
         private const val TAG = "AssetLoader"
+        // ID spécial pour indiquer qu'une image est disponible dans assets/
+        const val ASSETS_IMAGE_PLACEHOLDER_ID = -1
     }
 
     private val json = Json {
@@ -70,6 +74,123 @@ class AssetLoader(private val context: Context) {
         }
     }
 
+
+
+    /**
+     * ✅ NOUVELLE MÉTHODE : Vérifie si une image existe dans assets/images/
+     */
+    private fun checkImageInAssets(imageName: String): Boolean {
+        val cleanName = cleanImageName(imageName)
+        return try {
+            // Essayer le nom original
+            context.assets.open("$IMAGES_ASSETS_FOLDER/$imageName").close()
+            Log.d(TAG, "✅ Image trouvée dans assets: '$imageName'")
+            true
+        } catch (e: IOException) {
+            try {
+                context.assets.open("$IMAGES_ASSETS_FOLDER/$cleanName").close()
+                Log.d(TAG, "✅ Image trouvée dans assets (nom nettoyé): '$cleanName'")
+                true
+            } catch (e2: IOException) {
+                Log.w(TAG, "❌ Image non trouvée dans assets: '$imageName' ni '$cleanName'")
+                false
+            }
+        }
+    }
+
+    /**
+     * ✅ MÉTHODE MISE À JOUR : Résout d'abord assets/, puis drawable/
+     */
+    fun resolveImageResource(imageName: String): Int? {
+        return try {
+            // ✅ STRATÉGIE 1 : Vérifier d'abord dans assets/images/
+            if (checkImageInAssets(imageName)) {
+                // Pour l'instant, on ne peut pas charger dynamiquement depuis assets/
+                // Il faudrait utiliser AssetManager.open() dans les composants
+                Log.d(TAG, "Image disponible dans assets: '$imageName' (chargement dynamique requis)")
+                // Retourner un ID spécial pour indiquer qu'elle est dans assets
+                return ASSETS_IMAGE_PLACEHOLDER_ID
+            }
+
+            // ✅ STRATÉGIE 2 : Chercher dans drawable/ (système Android classique)
+            val cleanName = cleanImageName(imageName)
+            val resourceId = context.resources.getIdentifier(
+                cleanName,
+                "drawable",
+                context.packageName
+            )
+
+            if (resourceId != 0) {
+                Log.d(TAG, "✅ Image trouvée dans drawable: '$imageName' -> '$cleanName' -> $resourceId")
+                resourceId
+            } else {
+                Log.w(TAG, "⚠️ Image non trouvée dans drawable: '$imageName' -> '$cleanName'")
+
+                // ✅ STRATÉGIE 3 : Essayer des variations
+                val alternatives = listOf(
+                    cleanName.replace("_01", ""),
+                    cleanName.replace("01", ""),
+                    "img_$cleanName",
+                    cleanName.take(10)
+                )
+
+                for (alt in alternatives) {
+                    val altId = context.resources.getIdentifier(alt, "drawable", context.packageName)
+                    if (altId != 0) {
+                        Log.d(TAG, "✅ Alternative trouvée: '$imageName' -> '$alt' -> $altId")
+                        return altId
+                    }
+                }
+
+                null
+            }
+        } catch (e: Exception) {
+            Log.e(TAG, "Erreur résolution image '$imageName': ${e.message}")
+            null
+        }
+    }
+
+    /**
+     * ✅ NOUVELLE MÉTHODE : Nettoie le nom d'image pour Android
+     */
+    private fun cleanImageName(imageName: String): String {
+        return imageName
+            .substringBeforeLast(".")           // Enlever extension (.png, .jpg)
+            .replace(" ", "_")                  // Espaces -> underscores
+            .replace("-", "_")                  // Tirets -> underscores
+            .replace(Regex("[^a-zA-Z0-9_]"), "") // Enlever caractères spéciaux
+            .lowercase()                        // Minuscules obligatoires
+    }
+
+    /**
+     * ✅ MÉTHODE POUR CHARGER IMAGE DEPUIS ASSETS (à utiliser dans les Composables)
+     */
+    suspend fun loadImageFromAssets(imageName: String): ByteArray? {
+        return try {
+            val cleanName = cleanImageName(imageName)
+
+            // Essayer nom original puis nom nettoyé
+            val finalName = try {
+                context.assets.open("$IMAGES_ASSETS_FOLDER/$imageName").close()
+                imageName
+            } catch (e: IOException) {
+                context.assets.open("$IMAGES_ASSETS_FOLDER/$cleanName").close()
+                cleanName
+            }
+
+            val inputStream = context.assets.open("$IMAGES_ASSETS_FOLDER/$finalName")
+            val bytes = inputStream.readBytes()
+            inputStream.close()
+
+            Log.d(TAG, "✅ Image chargée depuis assets: '$finalName' (${bytes.size} bytes)")
+            bytes
+
+        } catch (e: IOException) {
+            Log.w(TAG, "❌ Impossible de charger image depuis assets: '$imageName'")
+            null
+        }
+    }
+
     /**
      * Fallback hardcodé si backend non disponible
      */
@@ -104,56 +225,5 @@ class AssetLoader(private val context: Context) {
                 imageResourceId = null
             )
         )
-    }
-
-    /**
-     * Résout le nom d'image vers un resource ID Android
-     * Adapté pour les noms d'images du backend (ex: "Karukan 01.jpg")
-     */
-    fun resolveImageResource(imageName: String): Int? {
-        return try {
-            // Nettoyer le nom pour Android (enlever extension, espaces, caractères spéciaux)
-            val cleanName = imageName
-                .substringBeforeLast(".")           // Enlever extension
-                .replace(" ", "_")                  // Espaces -> underscores
-                .replace("-", "_")                  // Tirets -> underscores
-                .replace(Regex("[^a-zA-Z0-9_]"), "") // Enlever caractères spéciaux
-                .lowercase()                        // Minuscules obligatoires
-
-            // Chercher dans les drawables
-            val resourceId = context.resources.getIdentifier(
-                cleanName,
-                "drawable",
-                context.packageName
-            )
-
-            if (resourceId != 0) {
-                Log.d(TAG, "Image trouvée: '$imageName' -> '$cleanName' -> $resourceId")
-                resourceId
-            } else {
-                Log.w(TAG, "Image non trouvée: '$imageName' -> '$cleanName'")
-
-                // Essayer des variations courantes
-                val alternatives = listOf(
-                    cleanName.replace("_01", ""),     // "karukan_01" -> "karukan"
-                    cleanName.replace("01", ""),      // "karukan01" -> "karukan"
-                    "img_$cleanName",                 // "karukan" -> "img_karukan"
-                    cleanName.take(10)                // Limiter à 10 caractères
-                )
-
-                for (alt in alternatives) {
-                    val altId = context.resources.getIdentifier(alt, "drawable", context.packageName)
-                    if (altId != 0) {
-                        Log.d(TAG, "Alternative trouvée: '$imageName' -> '$alt' -> $altId")
-                        return altId
-                    }
-                }
-
-                null
-            }
-        } catch (e: Exception) {
-            Log.e(TAG, "Erreur résolution image '$imageName': ${e.message}")
-            null
-        }
     }
 }

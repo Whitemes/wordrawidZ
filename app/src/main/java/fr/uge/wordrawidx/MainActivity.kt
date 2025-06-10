@@ -15,6 +15,7 @@ import fr.uge.wordrawidx.view.screens.VictoryScreen
 // import fr.uge.wordrawidx.view.screens.AccelerometerMazeScreen // ❌ DÉSACTIVÉ
 import fr.uge.wordrawidx.ui.theme.WordrawidTheme
 import fr.uge.wordrawidx.utils.MiniGameResultHolder
+import fr.uge.wordrawidx.view.screens.AccelerometerMazeScreen
 import fr.uge.wordrawidx.view.screens.GameScreen
 import fr.uge.wordrawidx.view.screens.ShakeGameScreen
 
@@ -72,13 +73,22 @@ fun AppNavigation(navController: NavigationController) {
             }
         )
 
-        // ❌ DÉSACTIVÉ : AccelerometerMaze
-        Screen.AccelerometerMaze -> {
-            Log.w("AppNavigation", "AccelerometerMaze DÉSACTIVÉ - Redirection vers ShakeGame")
-            // Redirection automatique vers ShakeGame
-            MiniGameResultHolder.lastResultWasWin = false // Éviter le blocage
-            navController.navigateTo(Screen.Game)
-        }
+//        // ❌ DÉSACTIVÉ : AccelerometerMaze
+//        Screen.AccelerometerMaze -> {
+//            Log.w("AppNavigation", "AccelerometerMaze DÉSACTIVÉ - Redirection vers ShakeGame")
+//            // Redirection automatique vers ShakeGame
+//            MiniGameResultHolder.lastResultWasWin = false // Éviter le blocage
+//            navController.navigateTo(Screen.Game)
+//        }
+
+        Screen.AccelerometerMaze -> AccelerometerMazeScreen(
+            navigationController = navController,
+            onGameFinished = { won ->
+                Log.d("AppNavigation", "AccelerometerMaze finished. Won: $won")
+                MiniGameResultHolder.lastResultWasWin = won
+                navController.navigateTo(Screen.Game)
+            }
+        )
 
         Screen.ShakeGame -> ShakeGameScreen(
             navigationController = navController,
