@@ -34,7 +34,12 @@ import androidx.compose.ui.unit.min
 import fr.uge.wordrawidx.model.GameState
 import fr.uge.wordrawidx.model.CaseHintType
 import fr.uge.wordrawidx.R
+import fr.uge.wordrawidx.data.local.AssetLoader
 
+/**
+ * Plateau de jeu principal avec support images assets et drawable
+ * Découpage automatique en portions 5x5
+ */
 @Composable
 fun GameBoard(
     gameState: GameState,
@@ -78,7 +83,7 @@ fun GameBoard(
                         (logicalRow + logicalCol) % 2 == 0
                     },
                     revealedCell = revealedCell,
-                    mysteryImageRes = gameState.mysteryObject?.imageRes,
+                    mysteryObject = gameState.mysteryObject, // ✅ Objet mystère complet
                     cellIndex = gameBoardCellIndex,
                     boardSize = boardSize
                 )
@@ -87,6 +92,9 @@ fun GameBoard(
     }
 }
 
+/**
+ * Cellule individuelle du plateau avec gestion automatique images assets/drawable
+ */
 @SuppressLint("UnusedBoxWithConstraintsScope")
 @Composable
 fun BoardCell(
@@ -95,7 +103,7 @@ fun BoardCell(
     isPlayerMoving: Boolean,
     isEvenCell: Boolean,
     revealedCell: fr.uge.wordrawidx.model.RevealedCell?,
-    mysteryImageRes: Int?,
+    mysteryObject: fr.uge.wordrawidx.model.LocalMysteryObject?, // ✅ Type LocalMysteryObject
     cellIndex: Int,
     boardSize: Int,
     modifier: Modifier = Modifier
@@ -146,27 +154,44 @@ fun BoardCell(
                         }
                     }
                     CaseHintType.IMAGE -> {
-                        if (mysteryImageRes != null) {
-                            // ✅ Portion d'image en pleine taille (derrière le pion)
-                            PortionOfImageInCellFromBitmap(
-                                imageRes = mysteryImageRes,
-                                portionIndex = cellIndex,
-                                gridSize = boardSize,
-                                modifier = Modifier
-                                    .fillMaxSize() // Pleine taille
-                                    .align(Alignment.Center)
-                            )
-
-                            // Bordure subtile pour délimiter la portion
+                        // ✅ DÉCOUPAGE D'IMAGE : assets ou drawable avec découpage automatique
+                        if (mysteryObject != null) {
                             Box(
                                 modifier = Modifier
                                     .fillMaxSize()
-                                    .border(
-                                        width = 1.dp,
-                                        color = MaterialTheme.colorScheme.primary.copy(alpha = 0.3f),
-                                        shape = RoundedCornerShape(4.dp)
+                                    .align(Alignment.Center)
+                            ) {
+                                // Vérifier si l'image vient d'assets ou de drawable
+                                if (mysteryObject.imageRes == AssetLoader.ASSETS_IMAGE_PLACEHOLDER_ID) {
+                                    // ✅ Image dans assets/images/ avec découpage de portion
+                                    AssetImagePortion(
+                                        imageName = mysteryObject.imageName,
+                                        imageResourceId = null,
+                                        portionIndex = cellIndex,
+                                        gridSize = boardSize,
+                                        modifier = Modifier.fillMaxSize()
                                     )
-                            )
+                                } else {
+                                    // ✅ Image dans drawable/ avec découpage de portion
+                                    PortionOfImageInCellFromBitmap(
+                                        imageRes = mysteryObject.imageRes,
+                                        portionIndex = cellIndex,
+                                        gridSize = boardSize,
+                                        modifier = Modifier.fillMaxSize()
+                                    )
+                                }
+
+                                // Bordure subtile pour délimiter la portion
+                                Box(
+                                    modifier = Modifier
+                                        .fillMaxSize()
+                                        .border(
+                                            width = 1.dp,
+                                            color = MaterialTheme.colorScheme.primary.copy(alpha = 0.3f),
+                                            shape = RoundedCornerShape(4.dp)
+                                        )
+                                )
+                            }
                         }
                     }
                 }
@@ -221,7 +246,7 @@ fun BoardCell(
 }
 
 /**
- * ✅ FONCTION OPTIMISÉE - Découpage précis d'image avec Canvas
+ * ✅ DÉCOUPAGE PRÉCIS D'IMAGE DRAWABLE - Canvas optimisé
  */
 @Composable
 fun PortionOfImageInCellFromBitmap(
@@ -243,7 +268,8 @@ fun PortionOfImageInCellFromBitmap(
 }
 
 /**
- * ✅ FONCTION CORE - Découpage mathématique précis avec Canvas
+ * ✅ ALGORITHME CORE - Découpage mathématique précis avec Canvas
+ * Identique à votre version originale qui fonctionnait
  */
 @Composable
 fun PortionOfImageInCellBitmap(

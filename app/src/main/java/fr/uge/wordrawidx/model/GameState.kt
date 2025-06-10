@@ -7,6 +7,8 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import androidx.compose.runtime.snapshots.SnapshotStateList
 import java.util.concurrent.atomic.AtomicBoolean
+import fr.uge.wordrawidx.data.model.MysteryObject
+import fr.uge.wordrawidx.R
 
 const val BOARD_COLS_MAIN = 5
 const val BOARD_ROWS_MAIN = 5
@@ -20,15 +22,15 @@ data class RevealedCell(
 )
 
 /**
- * Modèle d'objet mystère moderne (compatible Repository)
- * Remplace l'ancien MysteryObject et MysteryBank deprecated
+ * Objet mystère local pour GameState (converti depuis Repository)
+ * Évite les conflits de types avec fr.uge.wordrawidx.data.model.MysteryObject
  */
-data class MysteryObject(
+data class LocalMysteryObject(
     val word: String,
     val closeWords: List<String>,
     val imageRes: Int,
     val imageName: String = "",
-    val source: String = "repository" // Origine des données
+    val source: String = "repository"
 )
 
 data class GameCellHint(
@@ -39,7 +41,7 @@ data class GameCellHint(
 
 /**
  * État de jeu moderne géré par Repository + ViewModel
- * Plus de dépendance aux objets hardcodés deprecated
+ * Compatible avec l'architecture Repository pattern
  */
 class GameState(val boardSize: Int = BOARD_COLS_MAIN) {
 
@@ -58,8 +60,8 @@ class GameState(val boardSize: Int = BOARD_COLS_MAIN) {
     val revealedCells: SnapshotStateList<RevealedCell> = mutableStateListOf()
     val cellHints: MutableList<GameCellHint> = mutableStateListOf()
 
-    // ✅ Objet mystère (fourni par Repository via ViewModel)
-    var mysteryObject by mutableStateOf<MysteryObject?>(null)
+    // ✅ Objet mystère local (converti depuis Repository)
+    var mysteryObject by mutableStateOf<LocalMysteryObject?>(null)
         private set
 
     // ✅ État de fin de partie
@@ -80,16 +82,25 @@ class GameState(val boardSize: Int = BOARD_COLS_MAIN) {
             return
         }
 
-        Log.i("GameState", "setMysteryObject - Mot: '${mystery.word}', Source: ${mystery.source}")
+        Log.i("GameState", "setMysteryObject - Mot: '${mystery.word}', Source: Repository")
 
-        mysteryObject = mystery
-        setupGameBoard(mystery)
+        // Convertir MysteryObject du Repository vers LocalMysteryObject
+        val localMystery = LocalMysteryObject(
+            word = mystery.word,
+            closeWords = mystery.closeWords,
+            imageRes = mystery.imageResourceId ?: R.drawable.img_souris,
+            imageName = mystery.imageName,
+            source = "repository"
+        )
+
+        mysteryObject = localMystery
+        setupGameBoard(localMystery)
     }
 
     /**
-     * Configure le plateau de jeu avec l'objet mystère
+     * Configure le plateau de jeu avec l'objet mystère local
      */
-    private fun setupGameBoard(mystery: MysteryObject) {
+    private fun setupGameBoard(mystery: LocalMysteryObject) {
         cellHints.clear()
 
         val totalCells = boardSize * boardSize

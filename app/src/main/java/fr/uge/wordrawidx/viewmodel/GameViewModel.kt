@@ -1,4 +1,4 @@
-// viewmodel/GameViewModel.kt (VERSION CORRIGÉE - SANS RESTOREMODE)
+// viewmodel/GameViewModel.kt (VERSION CORRIGÉE - TYPES COMPATIBLES)
 package fr.uge.wordrawidx.viewmodel
 
 import android.content.Context
@@ -9,13 +9,12 @@ import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
 import fr.uge.wordrawidx.data.repository.MysteryRepository
 import fr.uge.wordrawidx.model.GameState
-import fr.uge.wordrawidx.model.MysteryObject
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 
 /**
  * GameViewModel moderne avec intégration Repository
- * Compatible avec la nouvelle version de GameState sans restoreMode
+ * Compatible avec GameState corrigé (utilise MysteryObject du Repository directement)
  */
 class GameViewModel(
     private val savedStateHandle: SavedStateHandle,
@@ -98,17 +97,9 @@ class GameViewModel(
         val repositoryMystery = mysteryRepository.getRandomMysteryObject()
 
         if (repositoryMystery != null) {
-            // Convertir vers format GameState moderne
-            val gameStateMystery = MysteryObject(
-                word = repositoryMystery.word,
-                closeWords = repositoryMystery.closeWords,
-                imageRes = repositoryMystery.imageResourceId ?: fr.uge.wordrawidx.R.drawable.img_souris,
-                imageName = repositoryMystery.imageName,
-                source = "repository"
-            )
-
-            // ✅ Utiliser la nouvelle méthode setMysteryObject()
-            gameState.setMysteryObject(gameStateMystery)
+            // ✅ CORRECTION: Passer directement l'objet Repository à GameState
+            // GameState se charge de la conversion interne vers LocalMysteryObject
+            gameState.setMysteryObject(repositoryMystery)
 
             // Sauvegarder le mot actuel
             savedStateHandle[KEY_CURRENT_MYSTERY_WORD] = repositoryMystery.word
@@ -126,15 +117,8 @@ class GameViewModel(
         val repositoryMystery = mysteryRepository.findMysteryObjectByWord(savedWord)
 
         if (repositoryMystery != null) {
-            val gameStateMystery = MysteryObject(
-                word = repositoryMystery.word,
-                closeWords = repositoryMystery.closeWords,
-                imageRes = repositoryMystery.imageResourceId ?: fr.uge.wordrawidx.R.drawable.img_souris,
-                imageName = repositoryMystery.imageName,
-                source = "repository_restored"
-            )
-
-            gameState.setMysteryObject(gameStateMystery)
+            // ✅ CORRECTION: Passer directement l'objet Repository à GameState
+            gameState.setMysteryObject(repositoryMystery)
             Log.i("GameViewModel", "Partie restaurée - Mot: '${repositoryMystery.word}'")
         } else {
             Log.w("GameViewModel", "Mot sauvegardé '$savedWord' non trouvé - Nouvelle partie")
