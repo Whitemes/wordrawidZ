@@ -23,6 +23,7 @@ import fr.uge.wordrawidx.view.components.GameStatusCard
 import fr.uge.wordrawidx.viewmodel.GameViewModel
 import fr.uge.wordrawidx.viewmodel.GameViewModelFactory
 import nl.dionsegijn.konfetti.compose.BuildConfig
+import kotlin.random.Random
 
 @Composable
 fun GameScreen(
@@ -123,8 +124,17 @@ fun GameScreen(
                                 Log.i("GameScreen", "Mini-jeu préparé pour cellule $cellIdx - Position sauvegardée: ${gameState.playerPosition}")
 
                                 // ✅ TEMPORAIRE : Seulement ShakeGame activé
-                                Log.d("GameScreen", "Navigation vers ShakeGame (labyrinthe désactivé)")
-                                navigationController.navigateTo(Screen.ShakeGame)
+//                                Log.d("GameScreen", "Navigation vers ShakeGame (labyrinthe désactivé)")
+//                                navigationController.navigateTo(Screen.ShakeGame)
+                                // Choix aléatoire du mini-jeu (Shake ou Labyrinthe)
+                                val nextScreen = if (Random.nextBoolean()) {
+                                    Screen.ShakeGame
+                                } else {
+                                    Screen.AccelerometerMaze
+                                }
+                                Log.d("GameScreen", "Navigation vers $nextScreen (choix aléatoire)")
+                                navigationController.navigateTo(nextScreen)
+
                             } else {
                                 Log.d("GameScreen", "Case $cellIdx déjà révélée - Pas de challenge nécessaire")
                             }

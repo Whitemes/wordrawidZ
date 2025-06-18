@@ -37,6 +37,8 @@ import fr.uge.wordrawidx.R
 import fr.uge.wordrawidx.controller.AccelerometerMazeController
 import fr.uge.wordrawidx.controller.NavigationController
 import fr.uge.wordrawidx.model.*
+import androidx.lifecycle.viewmodel.compose.viewModel;
+import fr.uge.wordrawidx.viewmodel.MazeGameViewModel;
 
 // Constantes pour le mini-jeu labyrinthe
 val MAZE_BALL_IMAGE_SIZE_DP: Dp = 50.dp
@@ -56,7 +58,10 @@ fun AccelerometerMazeScreen(
     val orientation = configuration.orientation
 
     // État du labyrinthe (peut être sauvegardé avec Saver si nécessaire)
-    val mazeState = remember { MazeState() }
+//    val mazeState = remember { MazeState() }
+    // ViewModel qui survit aux changements de configuration
+    val mazeViewModel: MazeGameViewModel = viewModel()
+    val mazeState = mazeViewModel.mazeState
 
     // Contrôleur pour gérer l'accéléromètre et la logique de jeu
     val controller = remember(mazeState, coroutineScope) {

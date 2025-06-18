@@ -42,6 +42,7 @@ class AccelerometerMazeController(
     private var targetRadiusPx: Float = 0f
     private var cellWidthPx: Float = 0f
     private var cellHeightPx: Float = 0f
+    private var dimensionsInitialized = false
 
     fun registerListener() {
         accelerometer?.also { accel ->
@@ -62,6 +63,8 @@ class AccelerometerMazeController(
             return
         }
         screenWidthPx = widthPx
+        val oldCellWidth = cellWidthPx
+        val oldCellHeight = cellHeightPx
         screenHeightPx = heightPx
         ballRadiusPx = ballRpx
         targetRadiusPx = targetRpx
@@ -82,10 +85,25 @@ class AccelerometerMazeController(
             cellHeightPx = if (cellHeightPx <= 0) 1f else cellHeightPx
         }
 
-        val initialBallX = DEFAULT_BALL_START_POSITION_GRID_UNITS.x * cellWidthPx
-        val initialBallY = DEFAULT_BALL_START_POSITION_GRID_UNITS.y * cellHeightPx
-        mazeState.ballPosition = Offset(initialBallX, initialBallY)
-        Log.d("MazeController", "Dimensions set. Initial Ball Pos (px): ${mazeState.ballPosition}, cellW: $cellWidthPx, cellH: $cellHeightPx")
+//        val initialBallX = DEFAULT_BALL_START_POSITION_GRID_UNITS.x * cellWidthPx
+//        val initialBallY = DEFAULT_BALL_START_POSITION_GRID_UNITS.y * cellHeightPx
+//        mazeState.ballPosition = Offset(initialBallX, initialBallY)
+//        Log.d("MazeController", "Dimensions set. Initial Ball Pos (px): ${mazeState.ballPosition}, cellW: $cellWidthPx, cellH: $cellHeightPx")
+          if (dimensionsInitialized && oldCellWidth > 0f && oldCellHeight > 0f) {
+                        // On convertit l’ancienne position en unités de grille, puis on la
+                        // reprojette dans les nouvelles dimensions d’écran.
+                        val gridX = mazeState.ballPosition.x / oldCellWidth
+                        val gridY = mazeState.ballPosition.y / oldCellHeight
+                        mazeState.ballPosition = Offset(gridX * cellWidthPx, gridY * cellHeightPx)
+                        Log.d("MazeController", "Rotation : bille recalculée (grid=[$gridX,$gridY]) => px=${mazeState.ballPosition}")
+          } else {
+             // Première initialisation ou valeurs invalides : on part du départ.
+             val initialBallX = DEFAULT_BALL_START_POSITION_GRID_UNITS.x * cellWidthPx
+             val initialBallY = DEFAULT_BALL_START_POSITION_GRID_UNITS.y * cellHeightPx
+             mazeState.ballPosition = Offset(initialBallX, initialBallY)
+             dimensionsInitialized = true
+             Log.d("MazeController","Init : bille placée au départ px=${mazeState.ballPosition}")
+          }
     }
 
 //    @RequiresApi(Build.VERSION_CODES.VANILLA_ICE_CREAM)
