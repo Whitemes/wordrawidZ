@@ -1,0 +1,25 @@
+reviews:
+  enable_auto_review: true
+  auto_review_on:
+    - pull_request_opened
+    - pull_request_synchronize
+  review_level: high     # plus exigeant sur la qualité du code
+  comment_style: inline  # commente directement sur les lignes concernées
+  summarize_review: true # ajoute un résumé global
+
+rules:
+  language: kotlin
+  focus:
+    - readability
+    - maintainability
+    - performance
+    - error_handling
+    - concurrency
+    - tests
+
+ignore:
+  - "**/build/**"        # ignore les fichiers compilés
+  - "**/.gradle/**"
+  - "**/*.md"
+  - "**/*.yaml"
+  - "**/*.yml"
