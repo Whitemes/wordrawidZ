@@ -9,7 +9,7 @@
 
 ## Présentation du projet
 
-WordrawidZ est un jeu éducatif Android alliant plateau de jeu, devinettes et mini-jeux d'adresse (labyrinthe, secouage), développé avec Kotlin et Jetpack Compose. L'objectif est d'amener le joueur à deviner un mot ou une image mystère à travers une progression sur le plateau, la collecte d'indices et la réussite de mini-jeux utilisant les capteurs de l'appareil.
+WordrawidZ est un jeu éducatif Android **multijoueur local** alliant plateau de jeu, devinettes et mini-jeux d'adresse (labyrinthe, secouage), développé avec Kotlin et Jetpack Compose. Jusqu'à **4 joueurs** s'affrontent en tour par tour pour deviner un mot ou une image mystère à travers une progression sur le plateau, la collecte d'indices et la réussite de mini-jeux utilisant les capteurs de l'appareil.
 
 ---
 
@@ -21,7 +21,7 @@ Le projet vise à explorer la conception d'une application ludique et interactiv
 - L'utilisation des **capteurs matériels** Android (accéléromètre, secouage)
 - La **persistance robuste** résistant aux changements de configuration
 
-**Gameplay :** Le joueur lance un dé, se déplace sur un plateau 5x5, découvre des indices (mots sémantiques ou portions d'image), réussit des mini-jeux pour révéler les indices, et tente de deviner le mot mystère.
+**Gameplay :** Les joueurs lancent un dé à tour de rôle, se déplacent sur un plateau 5x5, découvrent des indices (mots sémantiques ou portions d'image), réussissent des mini-jeux pour révéler les indices et gagner des points, et tentent de deviner le mot mystère. Le premier à deviner remporte la partie !
 
 ---
 
@@ -90,24 +90,34 @@ User Interaction → ViewModel → Repository → Persist
 ## Exemple de scénario d'utilisation
 
 1. **Démarrage** : L'app charge automatiquement 20+ objets mystères via Repository JSON
-2. **Plateau** : Le joueur lance le dé virtuel et son pion se déplace avec animation
-3. **Mini-jeu déclenché** : Sur case non révélée, un défi apparaît :
+2. **Sélection joueurs** : 2 à 4 joueurs avec pions colorés (Rouge, Bleu, Vert, Orange)
+3. **Tour de jeu** : Le joueur actuel lance le dé virtuel et son pion se déplace avec animation
+4. **Mini-jeu déclenché** : Sur case non révélée, un défi apparaît :
    - **ShakeGame** : Secouer pour remplir une jauge avec combo/fever/malus
    - **AccelerometerMaze** : Guider une bille en inclinant l'appareil
-4. **Révélation** : Succès → indice révélé (mot sémantique ou portion d'image)
-5. **Devinette** : À tout moment, proposition du mot mystère
-6. **Victoire** : Mot trouvé → écran de félicitations avec confettis
+5. **Révélation** : Succès → indice révélé + 10 points pour le joueur
+6. **Tour suivant** : Passage automatique au joueur suivant
+7. **Devinette** : À tout moment, n'importe quel joueur peut proposer le mot mystère
+8. **Victoire** : Mot trouvé → écran de félicitations avec confettis et score final
 
 ---
 
 ## Fonctionnalités implémentées ✅
 
 ### **Core Gameplay**
-- ✅ Plateau 5x5 dynamique avec pion animé
+- ✅ Plateau 5x5 dynamique avec pions animés
 - ✅ Système de dé avec animations fluides
 - ✅ Révélation conditionnelle d'indices (mini-jeu requis)
 - ✅ Portions d'image découpées pixel-perfect avec Canvas
 - ✅ Devinette de mot mystère avec validation
+
+### **Multijoueur Local (Hotseat)**
+- ✅ **Mode 2-4 joueurs** sur le même appareil
+- ✅ **Pions colorés différenciés** (Rouge, Bleu, Vert, Orange)
+- ✅ **Système de tours automatique** après chaque mini-jeu
+- ✅ **Système de score** : +10 points par mini-jeu réussi
+- ✅ **Indicateur visuel** du joueur actuel avec couleur
+- ✅ **Affichage multiple** quand plusieurs joueurs sur même case
 
 ### **Mini-jeux**
 - ✅ **ShakeGame complet** : Système de combo, fever, malus avancés
@@ -125,6 +135,7 @@ User Interaction → ViewModel → Repository → Persist
 - ✅ Design Material 3 moderne et responsive
 - ✅ Animations pion et effets visuels
 - ✅ Navigation fluide entre écrans
+- ✅ Cartes colorées par joueur
 - ✅ Debug tools intégrés (stats, validation état)
 - ✅ Support images haute résolution
 
@@ -133,10 +144,10 @@ User Interaction → ViewModel → Repository → Persist
 ## Fonctionnalités à implémenter 🔲
 
 ### **Priorité Haute (Prochaines itérations)**
-- 🔲 **Mode multijoueur local** (2-4 joueurs)
+- 🔲 **Écran de configuration** : saisie noms des joueurs avant la partie
 - 🔲 **3ème mini-jeu** utilisant caméra/GPS/micro
-- 🔲 **Écran paramètres** (son, difficulté)
-- 🔲 **Système de scores** et statistiques
+- 🔲 **Écran paramètres** (son, difficulté, nombre de joueurs)
+- 🔲 **Historique des scores** et statistiques avancées
 
 ### **Priorité Moyenne (Évolutions futures)**
 - 🔲 **Mode multijoueur en ligne** avec backend serveur
@@ -201,15 +212,17 @@ wordrawidx/
 
 ## Modes de Jeu
 
-### **🔌 Mode Hors Ligne (Implémenté)**
-- **Solo uniquement** - 1 joueur contre le jeu
+### **🎮 Mode Multijoueur Local (Implémenté)**
+- **Hotseat 2-4 joueurs** - Tour par tour sur le même appareil
+- **Pions colorés** - Identification visuelle immédiate (Rouge, Bleu, Vert, Orange)
+- **Système de score** - +10 points par mini-jeu réussi
 - **Données locales** - Repository avec backend JSON + fallback intelligent
 - **Aucun internet requis** - Fonctionne partout
 - **20+ objets mystères** - Via Backend JSON avec images
 - **Performance optimale** - Cache intelligent et chargement asynchrone
 
 ### **🌐 Mode En Ligne (Futur)**
-- **Multijoueur** - 2-4 joueurs simultanés
+- **Multijoueur distant** - 2-4 joueurs simultanés en ligne
 - **Backend serveur** - Synchronisation temps réel
 - **Internet requis** - Communication WebSocket/HTTP
 - **Base étendue** - 50+ objets avec IA générative
@@ -221,7 +234,7 @@ wordrawidx/
 ### **Prérequis**
 - Android Studio Hedgehog ou ultérieur
 - JDK 11+
-- Appareil/émulateur Android API 34+ (Vanilla Ice Cream)
+- Appareil/émulateur Android **API 26+** (Android 8.0 Oreo ou supérieur)
 
 ### **Installation**
 1. Cloner le dépôt :
@@ -260,11 +273,11 @@ Les assets backend sont inclus dans le projet :
 
 ## Limitations techniques connues
 
-- **API minimale** : Android API 34+ requis
-- **Capteurs** : Accéléromètre requis pour labyrinthe (quasi-universel)
+- **API minimale** : Android API 26+ (Android 8.0 Oreo) requis
+- **Capteurs** : Accéléromètre requis pour labyrinthe (quasi-universel sur smartphones)
 - **Performance** : Chargement JSON initial 3-5s (puis cache)
 - **Images** : Certaines images backend manquantes (fallback vers placeholder)
-- **Multijoueur** : Non implémenté (mode solo uniquement)
+- **Multijoueur en ligne** : Non implémenté (mode local uniquement)
 
 ---
 
@@ -274,13 +287,15 @@ Les assets backend sont inclus dans le projet :
 - Repository Pattern et stratégie fallback
 - GameViewModel avec persistance SavedStateHandle
 - Résolution téléportation pion et persistance état
-- GameState moderne épuré
+- GameState moderne avec support multijoueur
 - Architecture modulaire et extensible
 - Intégration backend JSON + images assets
+- Système de tours et scores multijoueurs
 
 ### **Mini-jeux & Capteurs (Johnny)**
 - AccelerometerMaze avec génération labyrinthes
 - Découpage UI Board et gestion images
+- Affichage multijoueur avec pions colorés
 - Gestion capteurs multi-appareils
 - Système de collisions et physique
 - ShakeGame avec système avancé (combo/fever/malus)
@@ -302,17 +317,21 @@ Les assets backend sont inclus dans le projet :
 #### **✅ Complété (100%)**
 - ✅ Architecture Repository avec backend JSON complet
 - ✅ GameViewModel + persistance robuste
-- ✅ Mode solo hors ligne fonctionnel
+- ✅ **Mode multijoueur local 2-4 joueurs (Hotseat)**
+- ✅ **Système de tours et scores automatiques**
+- ✅ **Pions colorés différenciés par joueur**
 - ✅ 2 mini-jeux complets (ShakeGame + AccelerometerMaze)
 - ✅ Interface utilisateur moderne et responsive
 - ✅ Chargement dynamique images assets
 - ✅ 20+ objets mystères avec 500+ mots sémantiques
+- ✅ Compatibilité Android 8.0+ (API 26+)
 
 #### **📋 Prochaines étapes**
-1. **Mode multijoueur local** (2-4 joueurs même appareil)
-2. **Système de scores** et statistiques
-3. **Backend serveur** multijoueur en ligne
-4. **Extensions futures** selon feedback utilisateurs
+1. **Écran de configuration** : saisie noms personnalisés des joueurs
+2. **3ème mini-jeu** utilisant microphone ou caméra
+3. **Écran paramètres** : volume, difficulté, nombre de joueurs
+4. **Backend serveur** multijoueur en ligne
+5. **Extensions futures** selon feedback utilisateurs
 
 ---
 
@@ -326,9 +345,12 @@ Les assets backend sont inclus dans le projet :
 - ✅ Chargement images assets/drawable
 
 ### **Scénarios Critiques Validés**
-- ✅ Rotation écran → État préservé
+- ✅ Rotation écran → État préservé (positions, scores, tours)
 - ✅ Navigation mini-jeu → Retour position correcte
 - ✅ Changement configuration → Plateau identique
+- ✅ Passage de tours → Joueur suivant activé automatiquement
+- ✅ Score multijoueur → Points attribués correctement
+- ✅ Affichage pions → Plusieurs joueurs sur même case
 - ✅ Fallback données → Toujours 3+ objets disponibles
 - ✅ Backend JSON → 20+ objets chargés avec images
 
@@ -355,10 +377,10 @@ Les assets backend sont inclus dans le projet :
 ## Perspectives d'évolution
 
 ### **Court Terme (3 mois)**
-- Mode multijoueur local (même appareil)
-- Système scores et classements
-- Mini-jeux additionnels (caméra, GPS)
-- Écran paramètres avancé
+- Écran de configuration des joueurs (noms personnalisés)
+- Historique des parties et classements
+- Mini-jeux additionnels (caméra, microphone, GPS)
+- Écran paramètres avancé (son, difficulté)
 
 ### **Moyen Terme (6 mois)**
 - Backend serveur multijoueur en ligne
@@ -390,4 +412,4 @@ Libre réutilisation, modification et adaptation pour apprentissage ou expérime
 
 ---
 
-*Dernière mise à jour : Juin 2025 - Version Production v1.0.0*
+*Dernière mise à jour : Janvier 2026 - Version Production v1.0.0 (Multijoueur)*
