@@ -6,6 +6,7 @@ import androidx.compose.runtime.mutableStateListOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import androidx.compose.runtime.snapshots.SnapshotStateList
+import androidx.compose.ui.graphics.Color
 import java.util.concurrent.atomic.AtomicBoolean
 import fr.uge.wordrawidx.data.model.MysteryObject
 import fr.uge.wordrawidx.R
@@ -14,6 +15,16 @@ const val BOARD_COLS_MAIN = 5
 const val BOARD_ROWS_MAIN = 5
 
 enum class CaseHintType { IMAGE, SEMANTIC_WORD }
+
+/**
+ * Données d'un joueur pour le mode multijoueur local (Hotseat)
+ */
+data class PlayerData(
+    val name: String,
+    val position: Int = 0,
+    val score: Int = 0,
+    val color: Color
+)
 
 data class RevealedCell(
     val cellIndex: Int,
@@ -42,12 +53,35 @@ data class GameCellHint(
 /**
  * État de jeu moderne géré par Repository + ViewModel
  * Compatible avec l'architecture Repository pattern
+ * ✅ ÉTAPE 2 : Supporte le mode multijoueur local (Hotseat)
  */
 class GameState(val boardSize: Int = BOARD_COLS_MAIN) {
 
-    // ✅ États du jeu
-    var playerPosition by mutableStateOf(0)
+    // ✅ Couleurs prédéfinies pour les joueurs
+    companion object {
+        val PLAYER_COLORS = listOf(
+            Color(0xFFE74C3C), // Rouge
+            Color(0xFF3498DB), // Bleu
+            Color(0xFF2ECC71), // Vert
+            Color(0xFFF39C12)  // Orange
+        )
+    }
+
+    // ✅ MULTIJOUEUR : Liste des joueurs
+    val players: SnapshotStateList<PlayerData> = mutableStateListOf()
+
+    // ✅ MULTIJOUEUR : Index du joueur actuel
+    var currentPlayerIndex by mutableStateOf(0)
         internal set
+
+    // ✅ Propriété de compatibilité pour l'ancien code
+    val playerPosition: Int
+        get() = if (players.isNotEmpty()) players[currentPlayerIndex].position else 0
+
+    // ✅ Joueur actuel
+    val currentPlayer: PlayerData?
+        get() = players.getOrNull(currentPlayerIndex)
+
     var lastDiceRoll by mutableStateOf(0)
         internal set
     var isDiceRolling by mutableStateOf(false)
@@ -73,6 +107,19 @@ class GameState(val boardSize: Int = BOARD_COLS_MAIN) {
 
     init {
         Log.d("GameState", "GameState moderne initialisé - En attente Repository")
+        // Initialiser avec 2 joueurs par défaut
+        initializePlayers(listOf("Joueur 1", "Joueur 2"))
+    }
+
+    // ✅ MULTIJOUEUR : Initialise les joueurs
+    fun initializePlayers(playerNames: List<String>) {
+        players.clear()
+        playerNames.forEachIndexed { index, name ->
+            val color = PLAYER_COLORS.getOrElse(index) { PLAYER_COLORS[index % PLAYER_COLORS.size] }
+            players.add(PlayerData(name = name, position = 0, score = 0, color = color))
+        }
+        currentPlayerIndex = 0
+        Log.i("GameState", "Joueurs initialisés: ${players.size} joueurs - ${players.map { it.name }}")
     }
 
     // ✅ MÉTHODE PRINCIPALE : Définit l'objet mystère depuis Repository
@@ -151,8 +198,34 @@ class GameState(val boardSize: Int = BOARD_COLS_MAIN) {
     }
 
     internal fun updatePlayerPositionValue(newPosition: Int) {
-        Log.d("GameState", "Position pion: $playerPosition → $newPosition")
-        playerPosition = newPosition
+        if (players.isEmpty()) {
+            Log.w("GameState", "Aucun joueur - impossible de mettre à jour la position")
+            return
+        }
+        val currentPlayerData = players[currentPlayerIndex]
+        Log.d("GameState", "Position ${currentPlayerData.name}: ${currentPlayerData.position} → $newPosition")
+
+        // Mettre à jour la position du joueur actuel
+        players[currentPlayerIndex] = currentPlayerData.copy(position = newPosition)
+    }
+
+    // ✅ MULTIJOUEUR : Passer au joueur suivant
+    fun nextTurn() {
+        if (players.isEmpty()) return
+
+        currentPlayerIndex = (currentPlayerIndex + 1) % players.size
+        val nextPlayer = players[currentPlayerIndex]
+        Log.i("GameState", "Tour suivant → ${nextPlayer.name} (index $currentPlayerIndex)")
+    }
+
+    // ✅ MULTIJOUEUR : Mettre à jour le score du joueur actuel
+    internal fun updateCurrentPlayerScore(points: Int) {
+        if (players.isEmpty()) return
+
+        val currentPlayerData = players[currentPlayerIndex]
+        val newScore = currentPlayerData.score + points
+        players[currentPlayerIndex] = currentPlayerData.copy(score = newScore)
+        Log.d("GameState", "Score ${currentPlayerData.name}: ${currentPlayerData.score} → $newScore")
     }
 
     // ✅ MÉTHODES D'ÉTAT DU PLATEAU
@@ -205,11 +278,16 @@ class GameState(val boardSize: Int = BOARD_COLS_MAIN) {
         Log.i("GameState", "RESET pour nouvelle partie")
 
         // Reset états de jeu
-        playerPosition = 0
         lastDiceRoll = 0
         isDiceRolling = false
         isPlayerMoving = false
         isGameWon = false
+
+        // ✅ MULTIJOUEUR : Reset positions et scores des joueurs (garde les noms et couleurs)
+        for (i in players.indices) {
+            players[i] = players[i].copy(position = 0, score = 0)
+        }
+        currentPlayerIndex = 0
 
         // Reset plateau
         revealedCells.clear()
@@ -235,7 +313,10 @@ class GameState(val boardSize: Int = BOARD_COLS_MAIN) {
             hintsAvailable = mysteryObject?.closeWords?.size ?: 0,
             playerPosition = playerPosition,
             isGameWon = isGameWon,
-            source = mysteryObject?.source ?: "Aucune"
+            source = mysteryObject?.source ?: "Aucune",
+            // ✅ MULTIJOUEUR
+            currentPlayerName = currentPlayer?.name ?: "Aucun",
+            totalPlayers = players.size
         )
     }
 
@@ -267,6 +348,7 @@ class GameState(val boardSize: Int = BOARD_COLS_MAIN) {
 
 /**
  * Statistiques de l'état de jeu
+ * ✅ ÉTAPE 2 : Ajout des informations multijoueurs
  */
 data class GameStats(
     val totalCells: Int,
@@ -275,5 +357,7 @@ data class GameStats(
     val hintsAvailable: Int,
     val playerPosition: Int,
     val isGameWon: Boolean,
-    val source: String
+    val source: String,
+    val currentPlayerName: String = "Aucun",
+    val totalPlayers: Int = 1
 )

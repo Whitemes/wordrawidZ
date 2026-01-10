@@ -73,10 +73,15 @@ fun GameBoard(
         ) {
             itemsIndexed(cellIndices) { visualGridIndex, gameBoardCellIndex ->
                 val revealedCell = gameState.getHintForCell(gameBoardCellIndex)
+                // ✅ MULTIJOUEUR : Trouver tous les joueurs sur cette case
+                val playersOnCell = gameState.players.filter { it.position == gameBoardCellIndex }
+                val currentPlayerOnCell = playersOnCell.find { gameState.players.indexOf(it) == gameState.currentPlayerIndex }
+
                 BoardCell(
                     visualNumber = visualGridIndex + 1,
-                    isPlayerOnCell = gameBoardCellIndex == gameState.playerPosition,
-                    isPlayerMoving = gameState.isPlayerMoving && gameBoardCellIndex == gameState.playerPosition,
+                    playersOnCell = playersOnCell,
+                    isCurrentPlayerOnCell = currentPlayerOnCell != null,
+                    isPlayerMoving = gameState.isPlayerMoving && currentPlayerOnCell != null,
                     isEvenCell = run {
                         val logicalRow = gameBoardCellIndex / boardSize
                         val logicalCol = gameBoardCellIndex % boardSize
@@ -94,12 +99,14 @@ fun GameBoard(
 
 /**
  * Cellule individuelle du plateau avec gestion automatique images assets/drawable
+ * ✅ ÉTAPE 2 : Support multijoueur avec affichage de plusieurs pions
  */
 @SuppressLint("UnusedBoxWithConstraintsScope")
 @Composable
 fun BoardCell(
     visualNumber: Int,
-    isPlayerOnCell: Boolean,
+    playersOnCell: List<fr.uge.wordrawidx.model.PlayerData>,
+    isCurrentPlayerOnCell: Boolean,
     isPlayerMoving: Boolean,
     isEvenCell: Boolean,
     revealedCell: fr.uge.wordrawidx.model.RevealedCell?,
@@ -207,39 +214,64 @@ fun BoardCell(
                 )
             }
 
-            // ✅ COUCHE 2 : Pion TRANSPARENT au-dessus de tout
-            if (isPlayerOnCell) {
-                // Ombre du pion pour maintenir la visibilité de position
-                Image(
-                    painter = painterResource(id = R.drawable.ic_player_pawn),
-                    contentDescription = null,
-                    contentScale = ContentScale.Fit,
-                    modifier = Modifier
-                        .size(pawnImageSize)
-                        .align(Alignment.Center)
-                        .graphicsLayer(
-                            scaleX = scaleFactor,
-                            scaleY = scaleFactor,
-                            alpha = 0.3f, // Ombre semi-transparente
-                            translationX = 2f,
-                            translationY = 2f
-                        )
-                )
+            // ✅ COUCHE 2 : PIONS MULTIJOUEURS - Afficher tous les joueurs sur cette case
+            if (playersOnCell.isNotEmpty()) {
+                // Calculer la disposition des pions en grille si plusieurs joueurs
+                val playerCount = playersOnCell.size
+                val gridSize = when (playerCount) {
+                    1 -> 1
+                    2, 3, 4 -> 2
+                    else -> 3
+                }
 
-                // Pion principal transparent
-                Image(
-                    painter = painterResource(id = R.drawable.ic_player_pawn),
-                    contentDescription = "Pion du joueur",
-                    contentScale = ContentScale.Fit,
-                    modifier = Modifier
-                        .size(pawnImageSize)
-                        .align(Alignment.Center)
-                        .graphicsLayer(
-                            scaleX = scaleFactor,
-                            scaleY = scaleFactor,
-                            alpha = 0.7f // ✅ PION TRANSPARENT (70% opacité)
+                playersOnCell.forEachIndexed { index, player ->
+                    val row = index / gridSize
+                    val col = index % gridSize
+                    val offsetX = (col - gridSize / 2f) * (pawnImageSize.value * 0.4f)
+                    val offsetY = (row - gridSize / 2f) * (pawnImageSize.value * 0.4f)
+
+                    // Ombre du pion
+                    Canvas(
+                        modifier = Modifier
+                            .size(pawnImageSize * 0.8f)
+                            .align(Alignment.Center)
+                            .graphicsLayer(
+                                scaleX = if (isPlayerMoving && isCurrentPlayerOnCell && playersOnCell[0] == player) scaleFactor else 1f,
+                                scaleY = if (isPlayerMoving && isCurrentPlayerOnCell && playersOnCell[0] == player) scaleFactor else 1f,
+                                translationX = offsetX + 2f,
+                                translationY = offsetY + 2f
+                            )
+                    ) {
+                        drawCircle(
+                            color = player.color.copy(alpha = 0.3f),
+                            radius = size.minDimension / 2f
                         )
-                )
+                    }
+
+                    // Pion coloré principal
+                    Canvas(
+                        modifier = Modifier
+                            .size(pawnImageSize * 0.8f)
+                            .align(Alignment.Center)
+                            .graphicsLayer(
+                                scaleX = if (isPlayerMoving && isCurrentPlayerOnCell && playersOnCell[0] == player) scaleFactor else 1f,
+                                scaleY = if (isPlayerMoving && isCurrentPlayerOnCell && playersOnCell[0] == player) scaleFactor else 1f,
+                                translationX = offsetX,
+                                translationY = offsetY
+                            )
+                    ) {
+                        drawCircle(
+                            color = player.color.copy(alpha = 0.85f),
+                            radius = size.minDimension / 2f
+                        )
+                        // Bordure pour mieux visualiser
+                        drawCircle(
+                            color = androidx.compose.ui.graphics.Color.White,
+                            radius = size.minDimension / 2f,
+                            style = androidx.compose.ui.graphics.drawscope.Stroke(width = 3f)
+                        )
+                    }
+                }
             }
         }
     }

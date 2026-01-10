@@ -176,7 +176,8 @@ class GameViewModel(
             return
         }
 
-        Log.i("GameViewModel", "Traitement résultat mini-jeu - Cellule: $challengedCell, Gagné: $won, Position à restaurer: $savedPosition")
+        val currentPlayerName = gameState.currentPlayer?.name ?: "Joueur"
+        Log.i("GameViewModel", "Traitement résultat mini-jeu - $currentPlayerName - Cellule: $challengedCell, Gagné: $won, Position à restaurer: $savedPosition")
 
         if (savedPosition != null && savedPosition != gameState.playerPosition) {
             Log.i("GameViewModel", "Restauration position: ${gameState.playerPosition} → $savedPosition")
@@ -185,14 +186,26 @@ class GameViewModel(
 
         if (won) {
             gameState.revealCell(challengedCell)
-            Log.i("GameViewModel", "Cellule $challengedCell révélée suite à victoire")
+            // ✅ MULTIJOUEUR : Ajouter des points au joueur actuel
+            gameState.updateCurrentPlayerScore(10)
+            Log.i("GameViewModel", "Cellule $challengedCell révélée suite à victoire de $currentPlayerName (+10 points)")
         } else {
-            Log.d("GameViewModel", "Mini-jeu perdu - Cellule $challengedCell non révélée")
+            Log.d("GameViewModel", "Mini-jeu perdu - Cellule $challengedCell non révélée par $currentPlayerName")
         }
 
         lastChallengedCell = null
         playerPositionBeforeMiniGame = null
         pendingMiniGameResult = null
+
+        // ✅ MULTIJOUEUR : Passer au joueur suivant
+        gameState.nextTurn()
+    }
+
+    /**
+     * ✅ MULTIJOUEUR : Passe au joueur suivant manuellement
+     */
+    fun nextTurn() {
+        gameState.nextTurn()
     }
 
     fun tryToGuessWord(proposed: String): Boolean {
